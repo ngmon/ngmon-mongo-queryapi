@@ -1,10 +1,8 @@
 package org.monitoring.queryapi;
 
-import com.mongodb.CommandResult;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.Mongo;
-import com.mongodb.MongoException;
 import com.mongodb.MongoOptions;
 import java.io.BufferedReader;
 import java.io.File;
@@ -93,7 +91,7 @@ public class Manager {
 
         // First try loading from the current directory
         try {
-            File f = new File("config.properties");
+            File f = new File("src/main/resources/config.properties");
             is = new FileInputStream(f);
         } catch (Exception ex) {
             is = null;
@@ -102,7 +100,7 @@ public class Manager {
         try {
             if (is == null) {
                 // Try loading from classpath
-                is = getClass().getResourceAsStream("config.properties");
+                is = getClass().getResourceAsStream("src/main/resources/config.properties");
             }
 
             props.load(is);
