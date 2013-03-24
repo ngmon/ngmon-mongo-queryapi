@@ -17,7 +17,7 @@ import org.junit.Test;
  *
  * @author Michal Dubravcik
  */
-public class TestReason {
+public class ReasonTest {
     
     static Manager m = new Manager();
     static List<Document> list = new ArrayList<Document>();

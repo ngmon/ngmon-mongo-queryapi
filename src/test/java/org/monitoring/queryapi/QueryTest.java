@@ -18,7 +18,7 @@ import org.junit.Test;
  *
  * @author Michal
  */
-public class TestQuery {
+public class QueryTest {
 
     static Manager m = new Manager();
     static List<Document> list = new ArrayList<Document>();
