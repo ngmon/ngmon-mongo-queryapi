@@ -1,19 +1,12 @@
 package org.monitoring.queryapi;
 
-import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.Locale;
-import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -22,25 +15,27 @@ import java.util.concurrent.TimeUnit;
 public class Preaggregate {
 
     private DBCollection col;
+    String colName;
 
     public Preaggregate(DBCollection col) {
         this.col = col;
+        colName = col.getName();
     }
 
-    public void saveEvent(TimeUnit unit, int[] times, MeterEvent event) {
+    public void saveEvent(TimeUnit unit, int[] times, Event event) {
         Long fieldTime;
         int i = 0;
-        
-        int[] tt = new int[times.length + 1];        
-        System.arraycopy(times, 0, tt, 0, times.length);        
+
+        int[] tt = new int[times.length + 1];
+        System.arraycopy(times, 0, tt, 0, times.length);
         tt[times.length] = times[times.length - 1];
         times = tt;
-        
+
         while (i < times.length - 1) {
             int timeActual = times[i];
             int timeNext = times[i + 1];
             i++;
-            col = col.getDB().getCollection("aggregate" + timeActual);
+            col = col.getDB().getCollection(colName + timeActual);
 
             long eventDate = event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(timeNext);
 
@@ -50,31 +45,56 @@ public class Preaggregate {
 
             fieldTime = event.getDate().getTime() % unit.toMillis(timeNext) / unit.toMillis(timeActual);
 
-            if (aggregatedDoc == null) {                            //allocate empty agregation document
-                BasicDBObjectBuilder builder = BasicDBObjectBuilder.start().push("$set");
+            PreaggregateComputeMaxMin computer = new PreaggregateComputeMaxMin();
+            java.lang.reflect.Field[] fields = computer.getClass().getFields();
+            String fieldTimeString = fieldTime.toString();
+
+            /* allocate empty agregation document */
+            if (aggregatedDoc == null) {
+                BasicDBObjectBuilder builder = new BasicDBObjectBuilder();
+                for (java.lang.reflect.Field field : fields) {
+                    try {
+                        builder.append(field.getName(), field.get(computer));
+                    } catch (IllegalArgumentException ex) {
+                    } catch (IllegalAccessException ex) {
+                    }
+                }
+                DBObject allocationPoint = builder.get();
+                builder = BasicDBObjectBuilder.start().push("$set");
                 for (Integer j = 0; j < timeNext / timeActual; j++) {
-                    builder.append(j.toString(), new Double("0.0"));
+                    builder.append(j.toString(), allocationPoint);
                 }
                 DBObject allocate = builder.get();
                 col.update(identificationOldDay, allocate, true, false);
+            } else {
+                for (java.lang.reflect.Field field : fields) {
+                    try {
+                        computer.getClass().getField(field.getName())
+                                .set(computer,
+                                ((DBObject) aggregatedDoc.get(fieldTimeString)).get(field.getName()));
+                    } catch (IllegalArgumentException ex) {
+                    } catch (IllegalAccessException ex) {
+                    } catch (NoSuchFieldException ex) {
+                    } catch (SecurityException ex) {
+                    }
+                }
             }
-            
-            String fieldTimeString = fieldTime.toString();
-            
-            /* get old aggregate object */
-            Double value = new Double(0);            
-            if (aggregatedDoc != null) {
-                value = (Double) aggregatedDoc.get(fieldTimeString);
-            }
-            
-            /* recompute aggregated value */
-            value = value + event.getValue();
-            
+
+            computer.recompute(event);
+
             /* update aggregate object */
             BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
-            updateBuilder.push("$set").append(fieldTimeString, value);
+            updateBuilder.push("$set");
+            for (java.lang.reflect.Field field : fields) {
+                try {
+                    updateBuilder.append(fieldTimeString + "." + field.getName(), field.get(computer));
+                } catch (IllegalArgumentException ex) {
+                } catch (IllegalAccessException ex) {
+                }
+            }
+
             DBObject update = updateBuilder.get();
-            
+
             col.update(identificationOldDay, update, true, false);
         }
     }

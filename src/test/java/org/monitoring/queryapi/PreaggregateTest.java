@@ -17,7 +17,7 @@ import org.junit.Test;
 public class PreaggregateTest {
 
     static Manager m = new Manager();
-    static List<MeterEvent> list = new ArrayList<MeterEvent>();
+    static List<Event> list = new ArrayList<Event>();
     static Morphia morphia = new Morphia();
     static DBCollection col;
 
@@ -25,9 +25,10 @@ public class PreaggregateTest {
     public static void setUp() throws InterruptedException {
         col = m.getDb().getCollection("aggregate");
         for (int i = 0; i < 100; i++) {
-            MeterEvent event = new MeterEvent();
-            event.setDate(new Date(new Date().getTime() + 60*1000*60));
+            Event event = new Event();
+            event.setDate(new Date(new Date().getTime()));
             event.setValue(i);
+            event.setValue2(1);
             Thread.sleep(10);
             list.add(event);
         }
@@ -36,7 +37,7 @@ public class PreaggregateTest {
     @Test
     public void saveEvent() {
         Preaggregate preaggregate = new Preaggregate(col);
-        for(MeterEvent event : list){
+        for(Event event : list){
             int[] times = {1,15,60};
             preaggregate.saveEvent(TimeUnit.MINUTES, times, event);
         }
