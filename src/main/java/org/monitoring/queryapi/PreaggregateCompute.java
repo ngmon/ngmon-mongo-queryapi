@@ -12,6 +12,6 @@ package org.monitoring.queryapi;
  */
 public interface PreaggregateCompute {
 
-    void recompute(Event event);
+    public void recompute(Event event);
     
 }
