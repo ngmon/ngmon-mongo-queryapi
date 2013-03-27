@@ -1,24 +1,22 @@
 package org.monitoring.queryapi;
 
+import com.google.code.morphia.annotations.Entity;
+import com.google.code.morphia.annotations.Id;
 import java.util.Date;
+import org.bson.types.ObjectId;
 
 /**
  *
  * @author Michal Dubravcik
  */
+@Entity(value = "aggregate", noClassnameStored=true)
 public class Event {
 
+    @Id
+    private ObjectId id;
     private Date date;
     private double value;
 
-    public double getValue2() {
-        return value2;
-    }
-
-    public void setValue2(double value2) {
-        this.value2 = value2;
-    }
-    private double value2;
 
     public Date getDate() {
         return date;

@@ -1,12 +1,16 @@
 package org.monitoring.queryapi;
 
+import com.google.code.morphia.Datastore;
+import com.google.code.morphia.Morphia;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
+import com.mongodb.MapReduceCommand;
+import com.mongodb.MapReduceOutput;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -16,6 +20,7 @@ public class Preaggregate {
 
     private DBCollection col;
     String colName;
+    Morphia morphia = new Morphia();
 
     public Preaggregate(DBCollection col) {
         this.col = col;
@@ -23,38 +28,36 @@ public class Preaggregate {
     }
 
     /**
-     * Update aggregations with Event value(s). Method creates initial documents in DB if no are found. Otherwise
-     * documents are updated base on PreaggregateCompute implementation.
-     * 
-     * New collections are created with name of Preaggregate collection name from constructor and suffixed 
-     * with each element of times array.
-     * 
+     * Update aggregations with Event value(s). Method creates initial documents in DB if no are
+     * found. Otherwise documents are updated base on PreaggregateCompute implementation.
+     *
+     * New collections are created with name of Preaggregate collection name from constructor and
+     * suffixed with each element of times array.
+     *
      * * * * *
-     * Example:
-     * int[] times = {1,60,1440};
-     * saveEvent(TimeUnit.MINUTES, times, 1, --, --);
-     * 
-     * Creates collection db.aggregate1, db.aggregate60, db.aggregate1440.
-     * aggregate60 contains 60 fields that holds aggregations for each minute (first elem of array = 1 minute).
-     * aggregate24 contains 24 (1440/60) fields that holds aggregations for each hour (second elem of array = 60 minutes).
-     * aggregate1 contains only 1 (as it is last) field that holds aggregations for 
-     * each day (third elem of array = 1440 minutes).
-     * 
-     * Third parameter specifies that only 1 minute (hour,day) is updated with new event. Use number 7 if you
-     * want that 1 minute (hour/day) holds 7 minute (hour/day) aggregations [-3,+3 units].
+     * Example: int[] times = {1,60,1440}; saveEvent(TimeUnit.MINUTES, times, 1, --, --);
+     *
+     * Creates collection db.aggregate1, db.aggregate60, db.aggregate1440. db.aggregate60 contains
+     * 60 fields that holds aggregations for each minute (first elem of array = 1 minute).
+     * db.aggregate24 contains 24 (1440/60) fields that holds aggregations for each hour (second
+     * elem of array = 60 minutes = 1 hour). db.aggregate1 contains only 1 (as it is last) field
+     * that holds aggregations for each day (third elem of array = 1440 minutes = 24 hours = 1 day).
+     *
+     * Third parameter specifies that only 1 minute (hour,day) is updated with new event. Use number
+     * 7 if you want that 1 minute (hour/day) holds 7 minute (hour/day) aggregations [-3,+3 units].
      * * * * *
-     * 
+     *
      * @param unit base time unit
      * @param times array of ints that create hierarchial structure of aggregations
-     * @param range range specifing length (odd number) of interval around base
-     * date = (date - range/2 ; date + range/2) in base units in which are aggregation updated
+     * @param range range specifing length (odd number) of interval around base date = (date -
+     * range/2 ; date + range/2) in base units in which are aggregation updated
      * @param comp implementation specifing what and how to update with Event values
      * @param event event from which values are taken
      */
     public void saveEvent(TimeUnit unit, int[] times, int range, PreaggregateCompute computer, Event event) {
         Long fieldTime;
         int i = 0;
-        
+
         int[] tt = new int[times.length + 1];
         System.arraycopy(times, 0, tt, 0, times.length);
         tt[times.length] = times[times.length - 1];
@@ -64,12 +67,12 @@ public class Preaggregate {
             int timeActual = times[i];
             int timeNext = times[i + 1];
             i++;
-            col = col.getDB().getCollection(colName + timeNext/timeActual);
+            col = col.getDB().getCollection(colName + timeNext / timeActual);
 
-            for (int k = - range/2; k <= range/2; k++) {
+            for (int k = -range / 2; k <= range / 2; k++) {
                 long difference = unit.toMillis(timeActual * k);
-                long eventDateLocal =  event.getDate().getTime() + difference;
-                
+                long eventDateLocal = event.getDate().getTime() + difference;
+
                 long eventDate = eventDateLocal - eventDateLocal % unit.toMillis(timeNext);
 
                 DBObject identificationOldDay = BasicDBObjectBuilder.start()
@@ -92,7 +95,7 @@ public class Preaggregate {
                 } catch (InstantiationException ex) {
                 } catch (IllegalAccessException ex) {
                 }
-                
+
                 java.lang.reflect.Field[] fields = comp.getClass().getFields();
 
                 /* allocate empty agregation document */
@@ -126,7 +129,7 @@ public class Preaggregate {
                         }
                     }
                 }
-                
+
                 /* recompute aggregations */
                 comp.recompute(event);
 
@@ -146,5 +149,62 @@ public class Preaggregate {
                 col.update(identificationOldDay, update, true, false);
             }
         }
+    }
+
+    public void saveEventMR(Event event) {
+        TimeUnit unit = TimeUnit.MINUTES;
+        
+        morphia.map(Event.class);
+        Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
+
+        ds.save(event);
+
+        String map = "pre_map(this)";
+        String reduce = "function(id, values){ return sum_reduce(id, values);}";
+        String finalize = "";
+        String field = "value";
+
+        Map<String, Object> scope = new HashMap<String, Object>();
+        scope.put("field", field);
+
+        Date start = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(60));
+        Date end = new Date(start.getTime() + unit.toMillis(60));
+
+        BasicDBObjectBuilder queryLocal = new BasicDBObjectBuilder();
+        queryLocal.push("date").append(Field.GTE, start).append(Field.LT, end);
+
+        MapReduceCommand mapReduceCmd =
+                new MapReduceCommand(col, map, reduce, null,
+                MapReduceCommand.OutputType.INLINE, queryLocal.get());
+
+        if (!finalize.isEmpty()) {
+            mapReduceCmd.setFinalize(finalize);
+        }
+
+        if (scope != null) {
+            mapReduceCmd.setScope(scope);
+        }
+
+        MapReduceOutput out = col.mapReduce(mapReduceCmd);
+
+        Long fieldTime = event.getDate().getTime() % unit.toMillis(1440) 
+                / unit.toMillis(60);
+
+        /* create updating aggregation document */
+        BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
+        for (DBObject ob : out.results()) {
+            ob.removeField("_id");
+            updateBuilder.push("$set").append(fieldTime.toString(), ob);
+        }
+
+        DBObject update = updateBuilder.get();
+        
+        Date aggDate = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(1440));
+
+        DBObject identificationOldDay = BasicDBObjectBuilder.start()
+                .append("date", aggDate)
+                .get();
+
+        col.getDB().getCollection("aggregate60").update(identificationOldDay, update, true, false);
     }
 }

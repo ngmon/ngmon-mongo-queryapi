@@ -1,5 +1,6 @@
 package org.monitoring.queryapi;
 
+import com.mongodb.CommandResult;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.Mongo;
@@ -188,7 +189,7 @@ public class Manager {
      * @param cmd one JS function
      */
     public void executeJS(String cmd){
-        db.doEval(cmd);
+        CommandResult f = db.doEval(cmd);
     }
     
 

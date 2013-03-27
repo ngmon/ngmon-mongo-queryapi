@@ -228,6 +228,8 @@ public class Query {
         Map<String, Object> scope = getScope(field, step);
         return wrap("result", mapReduce(map, reduce, scope));
     }
+    
+    
 
     /**
      * Compute sum of values on specified field in interval specified by step taking into account

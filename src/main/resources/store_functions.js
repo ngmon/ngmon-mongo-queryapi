@@ -80,6 +80,14 @@ db.system.js.save([{
     _id:"median_reduce", 
     value : 
     function(id, values) { 
-        return (values.length%2!=0)?values[(1+values.length)/2-1]:(values[values.length/2-1]+values[values.length/2])/2;
+       values.sort(function(a,b){return a-b});
+       return (values.length%2!=0)?values[(1+values.length)/2-1]:(values[values.length/2-1]+values[values.length/2])/2;
     }
-}]);
+},{
+    _id:"pre_map", 
+    value : 
+    function(x) {     
+        emit(1, x[field]);        
+    }
+}
+]);
