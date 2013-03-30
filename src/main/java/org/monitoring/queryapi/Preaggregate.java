@@ -63,11 +63,17 @@ public class Preaggregate {
         tt[times.length] = times[times.length - 1];
         times = tt;
 
+        morphia.map(Event.class);
+        Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
+
+        ds.save(event);
+
         while (i < times.length - 1) {
+            String aggField = "agg";
             int timeActual = times[i];
             int timeNext = times[i + 1];
             i++;
-            col = col.getDB().getCollection(colName + timeNext / timeActual);
+            col = col.getDB().getCollection(colName + timeActual);
 
             for (int k = -range / 2; k <= range / 2; k++) {
                 long difference = unit.toMillis(timeActual * k);
@@ -83,7 +89,7 @@ public class Preaggregate {
                 String fieldTimeString = fieldTime.toString();
 
                 DBObject project = BasicDBObjectBuilder.start()
-                        .append("date", 1).append("_id", 1).append(fieldTimeString, 1)
+                        .append("date", 1).append("_id", 1).append(aggField, 1)
                         .get();
 
                 DBObject aggregatedDoc = col.findOne(identificationOldDay, project);
@@ -111,7 +117,7 @@ public class Preaggregate {
                     DBObject allocationPoint = builder.get();
                     builder = BasicDBObjectBuilder.start().push("$set");
                     for (Integer j = 0; j < timeNext / timeActual; j++) {
-                        builder.append(j.toString(), allocationPoint);
+                        builder.append(aggField + "." + j.toString(), allocationPoint);
                     }
                     DBObject allocate = builder.get();
                     col.update(identificationOldDay, allocate, true, false);
@@ -120,8 +126,8 @@ public class Preaggregate {
                     for (java.lang.reflect.Field field : fields) {
                         try {
                             comp.getClass().getField(field.getName())
-                                    .set(comp,
-                                    ((DBObject) aggregatedDoc.get(fieldTimeString)).get(field.getName()));
+                                .set(comp,((DBObject)((DBObject) aggregatedDoc.get(aggField)).get(fieldTimeString))
+                                    .get(field.getName()));
                         } catch (IllegalArgumentException ex) {
                         } catch (IllegalAccessException ex) {
                         } catch (NoSuchFieldException ex) {
@@ -138,7 +144,7 @@ public class Preaggregate {
                 updateBuilder.push("$set");
                 for (java.lang.reflect.Field field : fields) {
                     try {
-                        updateBuilder.append(fieldTimeString + "." + field.getName(), field.get(comp));
+                        updateBuilder.append(aggField + "." + fieldTimeString + "." + field.getName(), field.get(comp));
                     } catch (IllegalArgumentException ex) {
                     } catch (IllegalAccessException ex) {
                     }
@@ -151,60 +157,70 @@ public class Preaggregate {
         }
     }
 
-    public void saveEventMR(Event event) {
-        TimeUnit unit = TimeUnit.MINUTES;
-        
-        morphia.map(Event.class);
-        Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
+    public void saveEventMR(TimeUnit unit, int[] times, Event event, Boolean fromBottom) {
 
-        ds.save(event);
+        for (int i = 0; i < times.length - 1; i++) {
+            int before = 0;
+            if (i > 0) {
+                before = times[i - 1];
+            }
+            int actual = times[i];
+            int next = times[i + 1];
 
-        String map = "pre_map(this)";
-        String reduce = "function(id, values){ return sum_reduce(id, values);}";
-        String finalize = "";
-        String field = "value";
+            morphia.map(Event.class);
+            Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
 
-        Map<String, Object> scope = new HashMap<String, Object>();
-        scope.put("field", field);
+            ds.save(event);
 
-        Date start = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(60));
-        Date end = new Date(start.getTime() + unit.toMillis(60));
+            String map = "pre_map(this)";
+            String mapUpper = "pre_map_upper(this)";
+            String reduce = "function(id, values){ return sum_reduce(id, values);}";
+            String finalize = "";
 
-        BasicDBObjectBuilder queryLocal = new BasicDBObjectBuilder();
-        queryLocal.push("date").append(Field.GTE, start).append(Field.LT, end);
+            Date start = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(actual));
+            Date end = new Date(start.getTime() + unit.toMillis(actual));
 
-        MapReduceCommand mapReduceCmd =
-                new MapReduceCommand(col, map, reduce, null,
-                MapReduceCommand.OutputType.INLINE, queryLocal.get());
+            BasicDBObjectBuilder queryLocal = new BasicDBObjectBuilder();
+            queryLocal.push("date").append(Field.GTE, start).append(Field.LT, end);
 
-        if (!finalize.isEmpty()) {
-            mapReduceCmd.setFinalize(finalize);
+            DBCollection inputCol;
+            if (fromBottom == true || i == 0) {
+                inputCol = col;
+            } else {
+                map = mapUpper;
+                reduce = ""; //REDUCE IS NOT INVOKED (ONLY MAP 1 TIME, WITHOUT REDUCE)
+                inputCol = col.getDB().getCollection("aggregate" + before);
+            }
+            MapReduceCommand mapReduceCmd =
+                    new MapReduceCommand(inputCol, map, reduce, null,
+                    MapReduceCommand.OutputType.INLINE, queryLocal.get());
+
+            if (!finalize.isEmpty()) {
+                mapReduceCmd.setFinalize(finalize);
+            }
+
+            MapReduceOutput out = inputCol.mapReduce(mapReduceCmd);
+
+
+            Long fieldTime = event.getDate().getTime() % unit.toMillis(next)
+                    / unit.toMillis(actual);
+
+            /* create updating aggregation document */
+            BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
+            for (DBObject ob : out.results()) {
+                ob.removeField("_id");
+                updateBuilder.push("$set").append("agg." + fieldTime.toString(), ob);
+            }
+
+            DBObject update = updateBuilder.get();
+
+            Date aggDate = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(next));
+
+            DBObject identificationOldDay = BasicDBObjectBuilder.start()
+                    .append("date", aggDate)
+                    .get();
+
+            col.getDB().getCollection("aggregate" + actual).update(identificationOldDay, update, true, false);
         }
-
-        if (scope != null) {
-            mapReduceCmd.setScope(scope);
-        }
-
-        MapReduceOutput out = col.mapReduce(mapReduceCmd);
-
-        Long fieldTime = event.getDate().getTime() % unit.toMillis(1440) 
-                / unit.toMillis(60);
-
-        /* create updating aggregation document */
-        BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
-        for (DBObject ob : out.results()) {
-            ob.removeField("_id");
-            updateBuilder.push("$set").append(fieldTime.toString(), ob);
-        }
-
-        DBObject update = updateBuilder.get();
-        
-        Date aggDate = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(1440));
-
-        DBObject identificationOldDay = BasicDBObjectBuilder.start()
-                .append("date", aggDate)
-                .get();
-
-        col.getDB().getCollection("aggregate60").update(identificationOldDay, update, true, false);
     }
 }

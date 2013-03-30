@@ -30,15 +30,17 @@ public class PreaggregateTestMR {
 
     @BeforeClass
     public static void setUp() throws InterruptedException {
-        col = m.getDb().getCollection("aggregate");        
+        col = m.getDb().getCollection("aggregate"); 
         m.getDb().dropDatabase();
+        col.createIndex(new BasicDBObject("date", 1));
         m.executeJSFromFile("src/main/resources/store_functions.js");
-        Calendar cal = new GregorianCalendar(2013, 1, 2, 15, 0, 0);
+        Calendar cal = new GregorianCalendar(2013, 1, 1, 15, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1000; i++) {
             Event event = new Event();
             cal.set(Calendar.MINUTE, i%60);
-            cal.set(Calendar.HOUR_OF_DAY, i/60 + 15);
+            cal.set(Calendar.DAY_OF_WEEK, i/500%7);
+            cal.set(Calendar.HOUR_OF_DAY, i/60%24 + 3);  //HOUR OF DAY
             event.setDate(cal.getTime());
             event.setValue(10);
             list.add(event);
@@ -49,11 +51,13 @@ public class PreaggregateTestMR {
     @Test
     public void saveEvent() {
         Preaggregate preaggregate = new Preaggregate(col);
+        TimeUnit unit = TimeUnit.MINUTES;
+        int[] times = {60, 1440, 2880}; // hourly(in day), dayily(in week)
         for(Event event : list){
-            preaggregate.saveEventMR(event);
+            preaggregate.saveEventMR(unit, times, event, true);
         }
         DBCollection c = m.getDb().getCollection("aggregate60");
-        Calendar cal = new GregorianCalendar(2013, 1, 2, 15, 0, 0);
+        Calendar cal = new GregorianCalendar(2013, 2, 9, 15, 0, 0);
         Date d = cal.getTime();
         DBObject doc = c.findOne(new BasicDBObject("date", cal.getTime()));
     }

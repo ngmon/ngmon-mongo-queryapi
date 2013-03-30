@@ -186,11 +186,10 @@ public class Manager {
     
     /**
      * Execute JS function on serverside of Mongo
-     * @param cmd one JS function
+     * @param cmd only one JS command (function)
      */
     public void executeJS(String cmd){
         CommandResult f = db.doEval(cmd);
     }
     
-
 }
