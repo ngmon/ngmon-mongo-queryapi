@@ -160,6 +160,16 @@ public class Manager {
      * Read JS function from file on specified path and execute it on serverside of Mongo
      */
     public void executeJSFromFile(String path) {
+        String cmd = readFile(path);
+        executeJS(cmd);
+    }
+    
+    public void executeJSFromDefaultFile() {
+        String cmd = readFile("src/main/resources/js_command.js");
+        executeJS("db.system.js.save(" + cmd + ");");
+    }
+    
+    public static String readFile(String path) {
         StringBuilder sb = new StringBuilder();
         InputStream is = null;
         try {
@@ -181,15 +191,16 @@ public class Manager {
         } catch (IOException ex) {
             System.err.println("no file");
         }
-        executeJS(sb.toString());
+        return sb.toString();
     }
+    
     
     /**
      * Execute JS function on serverside of Mongo
      * @param cmd only one JS command (function)
      */
     public void executeJS(String cmd){
-        CommandResult f = db.doEval(cmd);
+        CommandResult r = db.doEval(cmd);
     }
     
 }

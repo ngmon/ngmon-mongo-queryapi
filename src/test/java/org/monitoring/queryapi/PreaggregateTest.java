@@ -32,12 +32,13 @@ public class PreaggregateTest {
     public static void setUp() throws InterruptedException {
         col = m.getDb().getCollection("aggregate");
         m.getDb().dropDatabase();
-        Calendar cal = new GregorianCalendar(2013, 1, 2, 15, 0, 0);
+        Calendar cal = new GregorianCalendar(2013, 1, 2, 15, 0, 0);        
         cal.set(Calendar.MILLISECOND, 0);
         for (int i = 0; i < 100; i++) {
             Event event = new Event();
             cal.set(Calendar.SECOND, i%60);
             cal.set(Calendar.MINUTE, i/60);
+            cal.set(Calendar.HOUR_OF_DAY, i/60 + 15);
             event.setDate(cal.getTime());
             event.setValue(10);
             list.add(event);
@@ -52,19 +53,20 @@ public class PreaggregateTest {
             int[] times = {60, 1440, 2880};
             preaggregate.saveEvent(TimeUnit.MINUTES, times, 1, computer, event);
         }
-        DBCollection c = m.getDb().getCollection("aggregate60");
+        DBCollection c = m.getDb().getCollection("aggregate1440");
         Calendar cal = new GregorianCalendar(2013, 1, 2, 1, 0, 0);
         Date d = cal.getTime();
         DBObject doc = c.findOne(new BasicDBObject("date", cal.getTime()));
-//        assertNotNull("empty response from DB aggregate60", doc);
-//        assertEquals(new Double(60), (Double) ((DBObject)doc.get("0")).get("count"));
-//        assertEquals(new Double(40), (Double) ((DBObject)doc.get("1")).get("count"));
-//        
+        assertNotNull("empty response from DB aggregate1440", doc);
+        assertEquals(new Double(100), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("0"))).get("count"));
+        assertEquals(new Double(0), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("1"))).get("count"));
+        
         c = m.getDb().getCollection("aggregate60");
         cal = new GregorianCalendar(2013, 1, 2, 1, 0, 0);
         doc = c.findOne(new BasicDBObject("date", cal.getTime()));
         assertNotNull("empty response from DB aggregate60", doc);
-        assertEquals(new Double(100), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("14"))).get("count"));
+        assertEquals(new Double(60), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("14"))).get("count"));
+        assertEquals(new Double(40), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("15"))).get("count"));
         
         c = m.getDb().getCollection("aggregate2880");
         cal = new GregorianCalendar(2013, 1, 2, 1, 0, 0);

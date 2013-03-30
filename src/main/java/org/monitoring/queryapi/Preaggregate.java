@@ -20,11 +20,14 @@ public class Preaggregate {
 
     private DBCollection col;
     String colName;
+    DBObject allocateObject;
     Morphia morphia = new Morphia();
+    String aggField = "agg";
 
     public Preaggregate(DBCollection col) {
         this.col = col;
         colName = col.getName();
+        allocateObject = (DBObject) com.mongodb.util.JSON.parse(Manager.readFile("src/main/resources/js_allocate.js"));
     }
 
     /**
@@ -69,7 +72,6 @@ public class Preaggregate {
         ds.save(event);
 
         while (i < times.length - 1) {
-            String aggField = "agg";
             int timeActual = times[i];
             int timeNext = times[i + 1];
             i++;
@@ -126,7 +128,7 @@ public class Preaggregate {
                     for (java.lang.reflect.Field field : fields) {
                         try {
                             comp.getClass().getField(field.getName())
-                                .set(comp,((DBObject)((DBObject) aggregatedDoc.get(aggField)).get(fieldTimeString))
+                                    .set(comp, ((DBObject) ((DBObject) aggregatedDoc.get(aggField)).get(fieldTimeString))
                                     .get(field.getName()));
                         } catch (IllegalArgumentException ex) {
                         } catch (IllegalAccessException ex) {
@@ -172,9 +174,9 @@ public class Preaggregate {
 
             ds.save(event);
 
-            String map = "pre_map(this)";
-            String mapUpper = "pre_map_upper(this)";
-            String reduce = "function(id, values){ return sum_reduce(id, values);}";
+            String map = "preaggregate_map(this)";
+            String mapUpper = "preaggregate_map_upper(this)";
+            String reduce = "function(id, values){ return preaggregate_reduce(id, values);}";
             String finalize = "";
 
             Date start = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(actual));
@@ -205,22 +207,32 @@ public class Preaggregate {
             Long fieldTime = event.getDate().getTime() % unit.toMillis(next)
                     / unit.toMillis(actual);
 
-            /* create updating aggregation document */
-            BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
-            for (DBObject ob : out.results()) {
-                ob.removeField("_id");
-                updateBuilder.push("$set").append("agg." + fieldTime.toString(), ob);
-            }
-
-            DBObject update = updateBuilder.get();
+            DBCollection localCol = col.getDB().getCollection("aggregate" + actual);
 
             Date aggDate = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(next));
 
             DBObject identificationOldDay = BasicDBObjectBuilder.start()
                     .append("date", aggDate)
                     .get();
+            
+            BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
+            DBObject ob = out.results().iterator().next();
+            ob.removeField("_id");
+            //TODO: PREALLOCATE DBObject 
+            if (localCol.findOne(identificationOldDay) == null) {
+                BasicDBObjectBuilder builder = BasicDBObjectBuilder.start().push("$set");
+                for (Integer j = 0; j < next / actual; j++) {
+                    builder.append(aggField + "." + j.toString(), allocateObject);
+                }
+                DBObject allocate = builder.get();
+                localCol.update(identificationOldDay, allocate, true, false);
+            }
+            updateBuilder.push("$set").append("agg." + fieldTime.toString(), (DBObject) ob.get("value"));
 
-            col.getDB().getCollection("aggregate" + actual).update(identificationOldDay, update, true, false);
+            DBObject update = updateBuilder.get();
+
+
+            localCol.update(identificationOldDay, update, true, false);
         }
     }
 }

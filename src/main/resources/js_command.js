@@ -1,4 +1,4 @@
-db.system.js.save([{
+[{
     _id:"map", 
     value : 
     function(x) {        
@@ -85,20 +85,33 @@ db.system.js.save([{
        return (values.length%2!=0)?values[(1+values.length)/2-1]:(values[values.length/2-1]+values[values.length/2])/2;
     }
 },{
-    _id:"pre_map", 
+    _id:"preaggregate_map", 
     value : 
-    function(x) {     
-        emit(1, x.value);        
+    function(x) { 
+        output = {sum : x.value, count : 1, avg : x.value };
+        emit(1, output);        
     }
 },{
-    _id:"pre_map_upper", 
+    _id:"preaggregate_reduce", 
+    value :        
+    function(id, values){ 
+        var sum = 0;
+        for(i = 0; i<values.length; i++){
+            sum += values[i].sum;
+        }
+        output = {sum : sum, count : values.length, avg : sum / values.length };
+        return output; 
+    }
+},{
+    _id:"preaggregate_map_upper", 
     value : 
     function(x) {  
-        var sum = 0;
+        var sum = 0, count = 0;
         for(field in x.agg){
-            sum += x.agg[field].value;
+            sum += x.agg[field].sum;
+            count += x.agg[field].count;
         }
-        emit(1, sum);        
+        output = {sum : sum, count : count, avg : sum / count };
+        emit(1, output);        
     }
-}
-]);
+}]
