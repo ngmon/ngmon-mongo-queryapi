@@ -51,7 +51,7 @@ public class PreaggregateTest {
         PreaggregateCompute computer = new PreaggregateComputeAvg();
         for(Event event : list){
             int[] times = {60, 1440, 2880};
-            preaggregate.saveEvent(TimeUnit.MINUTES, times, 1, computer, event);
+            preaggregate.saveEvent(TimeUnit.MINUTES, times, 0, 0, computer, event);
         }
         DBCollection c = m.getDb().getCollection("aggregate1440");
         Calendar cal = new GregorianCalendar(2013, 1, 2, 1, 0, 0);

@@ -98,8 +98,9 @@
         var sum = 0;
         for(i = 0; i<values.length; i++){
             sum += values[i].sum;
+            count += values[i].count;
         }
-        output = {sum : sum, count : values.length, avg : sum / values.length };
+        output = {sum : sum, count : count, avg : sum / count };
         return output; 
     }
 },{

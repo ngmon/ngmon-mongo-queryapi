@@ -57,7 +57,7 @@ public class Preaggregate {
      * @param comp implementation specifing what and how to update with Event values
      * @param event event from which values are taken
      */
-    public void saveEvent(TimeUnit unit, int[] times, int range, PreaggregateCompute computer, Event event) {
+    public void saveEvent(TimeUnit unit, int[] times, int rangeLeft, int rangeRight, PreaggregateCompute computer, Event event) {
         Long fieldTime;
         int i = 0;
 
@@ -68,16 +68,15 @@ public class Preaggregate {
 
         morphia.map(Event.class);
         Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
-
         ds.save(event);
 
         while (i < times.length - 1) {
             int timeActual = times[i];
             int timeNext = times[i + 1];
             i++;
-            col = col.getDB().getCollection(colName + timeActual);
+            DBCollection localCol = col.getDB().getCollection(colName + timeActual);
 
-            for (int k = -range / 2; k <= range / 2; k++) {
+            for (int k = -rangeLeft; k <= rangeRight; k++) {
                 long difference = unit.toMillis(timeActual * k);
                 long eventDateLocal = event.getDate().getTime() + difference;
 
@@ -94,7 +93,7 @@ public class Preaggregate {
                         .append("date", 1).append("_id", 1).append(aggField, 1)
                         .get();
 
-                DBObject aggregatedDoc = col.findOne(identificationOldDay, project);
+                DBObject aggregatedDoc = localCol.findOne(identificationOldDay, project);
 
                 /* reset initial PreaggregateCompute fields  */
                 PreaggregateCompute comp = computer;
@@ -122,7 +121,7 @@ public class Preaggregate {
                         builder.append(aggField + "." + j.toString(), allocationPoint);
                     }
                     DBObject allocate = builder.get();
-                    col.update(identificationOldDay, allocate, true, false);
+                    localCol.update(identificationOldDay, allocate, true, false);
                 } else {
                     /* read fields from db and insert them into PreaggregateCompute instance */
                     for (java.lang.reflect.Field field : fields) {
@@ -154,12 +153,16 @@ public class Preaggregate {
 
                 DBObject update = updateBuilder.get();
 
-                col.update(identificationOldDay, update, true, false);
+                localCol.update(identificationOldDay, update, true, false);
             }
         }
     }
 
-    public void saveEventMR(TimeUnit unit, int[] times, Event event, Boolean fromBottom) {
+    public void saveEventMR(TimeUnit unit, int[] times, int rangeLeft, int rangeRight, Event event, Boolean fromBottom) {
+
+        morphia.map(Event.class);
+        Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
+        ds.save(event);
 
         for (int i = 0; i < times.length - 1; i++) {
             int before = 0;
@@ -169,70 +172,67 @@ public class Preaggregate {
             int actual = times[i];
             int next = times[i + 1];
 
-            morphia.map(Event.class);
-            Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
-
-            ds.save(event);
-
             String map = "preaggregate_map(this)";
             String mapUpper = "preaggregate_map_upper(this)";
             String reduce = "function(id, values){ return preaggregate_reduce(id, values);}";
             String finalize = "";
+            for (int k = - rangeLeft; k <= rangeRight; k++) {
+                Date start = new Date(event.getDate().getTime() 
+                        - event.getDate().getTime() % unit.toMillis(actual)
+                        + unit.toMillis(actual * (k - rangeLeft)));
+                Date middle = new Date(start.getTime() 
+                        + unit.toMillis(actual * (rangeLeft)));
+                Date end = new Date(middle.getTime() 
+                        + unit.toMillis(actual * (rangeRight + 1))) ;
 
-            Date start = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(actual));
-            Date end = new Date(start.getTime() + unit.toMillis(actual));
+                BasicDBObjectBuilder queryLocal = new BasicDBObjectBuilder();
+                queryLocal.push("date").append(Field.GTE, start).append(Field.LT, end);
 
-            BasicDBObjectBuilder queryLocal = new BasicDBObjectBuilder();
-            queryLocal.push("date").append(Field.GTE, start).append(Field.LT, end);
-
-            DBCollection inputCol;
-            if (fromBottom == true || i == 0) {
-                inputCol = col;
-            } else {
-                map = mapUpper;
-                reduce = ""; //REDUCE IS NOT INVOKED (ONLY MAP 1 TIME, WITHOUT REDUCE)
-                inputCol = col.getDB().getCollection("aggregate" + before);
-            }
-            MapReduceCommand mapReduceCmd =
-                    new MapReduceCommand(inputCol, map, reduce, null,
-                    MapReduceCommand.OutputType.INLINE, queryLocal.get());
-
-            if (!finalize.isEmpty()) {
-                mapReduceCmd.setFinalize(finalize);
-            }
-
-            MapReduceOutput out = inputCol.mapReduce(mapReduceCmd);
-
-
-            Long fieldTime = event.getDate().getTime() % unit.toMillis(next)
-                    / unit.toMillis(actual);
-
-            DBCollection localCol = col.getDB().getCollection("aggregate" + actual);
-
-            Date aggDate = new Date(event.getDate().getTime() - event.getDate().getTime() % unit.toMillis(next));
-
-            DBObject identificationOldDay = BasicDBObjectBuilder.start()
-                    .append("date", aggDate)
-                    .get();
-            
-            BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
-            DBObject ob = out.results().iterator().next();
-            ob.removeField("_id");
-            //TODO: PREALLOCATE DBObject 
-            if (localCol.findOne(identificationOldDay) == null) {
-                BasicDBObjectBuilder builder = BasicDBObjectBuilder.start().push("$set");
-                for (Integer j = 0; j < next / actual; j++) {
-                    builder.append(aggField + "." + j.toString(), allocateObject);
+                DBCollection inputCol;
+                if (fromBottom == true || i == 0) {
+                    inputCol = col;
+                } else {
+                    map = mapUpper;
+                    reduce = ""; //REDUCE IS NOT INVOKED (ONLY MAP 1 TIME, WITHOUT REDUCE)
+                    inputCol = col.getDB().getCollection("aggregate" + before);
                 }
-                DBObject allocate = builder.get();
-                localCol.update(identificationOldDay, allocate, true, false);
+                MapReduceCommand mapReduceCmd =
+                        new MapReduceCommand(inputCol, map, reduce, null,
+                        MapReduceCommand.OutputType.INLINE, queryLocal.get());
+
+                if (!finalize.isEmpty()) {
+                    mapReduceCmd.setFinalize(finalize);
+                }
+
+                MapReduceOutput out = inputCol.mapReduce(mapReduceCmd);
+
+                Long fieldTime = middle.getTime() % unit.toMillis(next)
+                        / unit.toMillis(actual);
+
+                DBCollection localCol = col.getDB().getCollection("aggregate" + actual);
+
+                Date aggDate = new Date(middle.getTime() - middle.getTime() % unit.toMillis(next));
+
+                DBObject identificationOldDay = BasicDBObjectBuilder.start()
+                        .append("date", aggDate)
+                        .get();
+
+                BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
+                DBObject ob = out.results().iterator().next();
+                ob.removeField("_id");
+                if (localCol.findOne(identificationOldDay) == null) {
+                    BasicDBObjectBuilder builder = BasicDBObjectBuilder.start().push("$set");
+                    for (Integer j = 0; j < next / actual; j++) {
+                        builder.append(aggField + "." + j.toString(), allocateObject);
+                    }
+                    DBObject allocate = builder.get();
+                    localCol.update(identificationOldDay, allocate, true, false);
+                }
+                updateBuilder.push("$set").append("agg." + fieldTime.toString(), (DBObject) ob.get("value"));
+
+                DBObject update = updateBuilder.get();
+                localCol.update(identificationOldDay, update, true, false);
             }
-            updateBuilder.push("$set").append("agg." + fieldTime.toString(), (DBObject) ob.get("value"));
-
-            DBObject update = updateBuilder.get();
-
-
-            localCol.update(identificationOldDay, update, true, false);
         }
     }
 }

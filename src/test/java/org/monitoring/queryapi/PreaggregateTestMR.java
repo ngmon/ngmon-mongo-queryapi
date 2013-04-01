@@ -36,7 +36,7 @@ public class PreaggregateTestMR {
         m.executeJSFromDefaultFile();
         Calendar cal = new GregorianCalendar(2013, 1, 2, 15, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 999; i < 1000; i++) {
             Event event = new Event();
             cal.set(Calendar.MINUTE, i%60);
             cal.set(Calendar.DAY_OF_WEEK, i/300%7);
@@ -52,10 +52,10 @@ public class PreaggregateTestMR {
     public void saveEvent() {
         Preaggregate preaggregate = new Preaggregate(col);
         TimeUnit unit = TimeUnit.MINUTES;
-        int[] times = {60, 1440, 10080}; // hourly(in day), dayily(in week)        
-        PreaggregateCompute computer = new PreaggregateComputeAvg();
+        int[] times = {/*60,*/ 1440, 10080}; // hourly(in day), dayily(in week)        
+        //PreaggregateCompute computer = new PreaggregateComputeAvg();
         for(Event event : list){
-            preaggregate.saveEventMR(unit, times, event, false);            
+            preaggregate.saveEventMR(unit, times, 3, 3, event, false);            
             //preaggregate.saveEvent(TimeUnit.MINUTES, times, 1, computer, event);
         }
         DBCollection c = m.getDb().getCollection("aggregate60");
