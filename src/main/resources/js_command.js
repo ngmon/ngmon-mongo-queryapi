@@ -95,7 +95,7 @@
     _id:"preaggregate_reduce", 
     value :        
     function(id, values){ 
-        var sum = 0;
+        var sum = 0, count = 0;
         for(i = 0; i<values.length; i++){
             sum += values[i].sum;
             count += values[i].count;

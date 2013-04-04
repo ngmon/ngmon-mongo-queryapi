@@ -50,8 +50,8 @@ public class PreaggregateTest {
         Preaggregate preaggregate = new Preaggregate(col);
         PreaggregateCompute computer = new PreaggregateComputeAvg();
         for(Event event : list){
-            int[] times = {60, 1440, 2880};
-            preaggregate.saveEvent(TimeUnit.MINUTES, times, 0, 0, computer, event);
+            int[][] times = {{60, 1440,0,0},{1440, 2880,0,0},{2880, 2880,0,0}};
+            preaggregate.saveEvent(TimeUnit.MINUTES, times, computer, event);
         }
         DBCollection c = m.getDb().getCollection("aggregate1440");
         Calendar cal = new GregorianCalendar(2013, 1, 2, 1, 0, 0);
@@ -71,7 +71,7 @@ public class PreaggregateTest {
         c = m.getDb().getCollection("aggregate2880");
         cal = new GregorianCalendar(2013, 1, 2, 1, 0, 0);
         doc = c.findOne(new BasicDBObject("date", cal.getTime()));
-        assertNotNull("empty response from DB aggregate1440", doc);
+        assertNotNull("empty response from DB aggregate2880", doc);
         assertEquals(new Double(100), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("0"))).get("count"));
     }
 }

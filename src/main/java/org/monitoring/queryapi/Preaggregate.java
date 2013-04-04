@@ -57,23 +57,27 @@ public class Preaggregate {
      * @param comp implementation specifing what and how to update with Event values
      * @param event event from which values are taken
      */
-    public void saveEvent(TimeUnit unit, int[] times, int rangeLeft, int rangeRight, PreaggregateCompute computer, Event event) {
+    public void saveEvent(TimeUnit unit, int[][] times, PreaggregateCompute computer, Event event) {
         Long fieldTime;
         int i = 0;
-
-        int[] tt = new int[times.length + 1];
-        System.arraycopy(times, 0, tt, 0, times.length);
-        tt[times.length] = times[times.length - 1];
-        times = tt;
 
         morphia.map(Event.class);
         Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
         ds.save(event);
 
-        while (i < times.length - 1) {
-            int timeActual = times[i];
-            int timeNext = times[i + 1];
+        while (i < times.length) {
+            int timeActual = times[i][0];
+            int timeNext = times[i][1];
+            int rangeLeft = 0;
+            if(times[i].length>2) {
+                rangeLeft = times[i][2];
+            }
+            int rangeRight = 0;
+            if(times[i].length > 3){
+                rangeRight = times[i][3];
+            }
             i++;
+            
             DBCollection localCol = col.getDB().getCollection(colName + timeActual);
 
             for (int k = -rangeLeft; k <= rangeRight; k++) {
@@ -158,24 +162,32 @@ public class Preaggregate {
         }
     }
 
-    public void saveEventMR(TimeUnit unit, int[] times, int rangeLeft, int rangeRight, Event event, Boolean fromBottom) {
+    public void saveEventMR(TimeUnit unit, int[][] times, Event event, Boolean fromBottom) {
 
         morphia.map(Event.class);
         Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
         ds.save(event);
 
-        for (int i = 0; i < times.length - 1; i++) {
+        for (int i = 0; i < times.length; i++) {
             int before = 0;
             if (i > 0) {
-                before = times[i - 1];
+                before = times[i - 1][0];
             }
-            int actual = times[i];
-            int next = times[i + 1];
+            int actual = times[i][0];
+            int next = times[i][1];
+            int rangeLeft = 0;
+            if(times[i].length>2) {
+                rangeLeft = times[i][2];
+            }
+            int rangeRight = 0;
+            if(times[i].length > 3){
+                rangeRight = times[i][3];
+            }
 
             String map = "preaggregate_map(this)";
             String mapUpper = "preaggregate_map_upper(this)";
             String reduce = "function(id, values){ return preaggregate_reduce(id, values);}";
-            String finalize = "";
+            
             for (int k = - rangeLeft; k <= rangeRight; k++) {
                 Date start = new Date(event.getDate().getTime() 
                         - event.getDate().getTime() % unit.toMillis(actual)
@@ -199,10 +211,6 @@ public class Preaggregate {
                 MapReduceCommand mapReduceCmd =
                         new MapReduceCommand(inputCol, map, reduce, null,
                         MapReduceCommand.OutputType.INLINE, queryLocal.get());
-
-                if (!finalize.isEmpty()) {
-                    mapReduceCmd.setFinalize(finalize);
-                }
 
                 MapReduceOutput out = inputCol.mapReduce(mapReduceCmd);
 

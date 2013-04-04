@@ -27,6 +27,7 @@ public class PreaggregateTestMR {
     static List<Event> list = new ArrayList<Event>();
     static Morphia morphia = new Morphia();
     static DBCollection col;
+    static PreaggregateCompute computer = new PreaggregateComputeAvg();
 
     @BeforeClass
     public static void setUp() throws InterruptedException {
@@ -34,14 +35,12 @@ public class PreaggregateTestMR {
         m.getDb().dropDatabase();
         col.createIndex(new BasicDBObject("date", 1));
         m.executeJSFromDefaultFile();
-        Calendar cal = new GregorianCalendar(2013, 1, 2, 15, 0, 0);
+        Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
-        for (int i = 999; i < 1000; i++) {
+        for (int i = 0; i < 192; i++) {
             Event event = new Event();
-            cal.set(Calendar.MINUTE, i%60);
-            cal.set(Calendar.DAY_OF_WEEK, i/300%7);
-            cal.set(Calendar.HOUR_OF_DAY, i/60%24 + 3);  //HOUR OF DAY
             event.setDate(cal.getTime());
+            cal.setTime(new Date(cal.getTime().getTime() + 1000*60*15)); 
             event.setValue(10);
             list.add(event);
         }
@@ -52,15 +51,19 @@ public class PreaggregateTestMR {
     public void saveEvent() {
         Preaggregate preaggregate = new Preaggregate(col);
         TimeUnit unit = TimeUnit.MINUTES;
-        int[] times = {/*60,*/ 1440, 10080}; // hourly(in day), dayily(in week)        
-        //PreaggregateCompute computer = new PreaggregateComputeAvg();
+        int[][] times = {{1440, 10080,1,1}}; // dayily(in week)       
         for(Event event : list){
-            preaggregate.saveEventMR(unit, times, 3, 3, event, false);            
-            //preaggregate.saveEvent(TimeUnit.MINUTES, times, 1, computer, event);
+            preaggregate.saveEventMR(unit, times, event, false);            
+            //preaggregate.saveEvent(unit, times, computer, event);            
         }
-        DBCollection c = m.getDb().getCollection("aggregate60");
-        Calendar cal = new GregorianCalendar(2013, 2, 9, 15, 0, 0);
+        DBCollection c = m.getDb().getCollection("aggregate1440");
+        Calendar cal = new GregorianCalendar(2013, 0, 31, 1, 0, 0);
         Date d = cal.getTime();
-        DBObject doc = c.findOne(new BasicDBObject("date", cal.getTime()));
+        DBObject doc = c.findOne(new BasicDBObject("date", cal.getTime()));        
+        assertNotNull("empty response from DB aggregate1440", doc);
+        assertEquals(new Double(96), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("0"))).get("count"));
+        assertEquals(new Double(192), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("1"))).get("count"));
+        assertEquals(new Double(192), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("2"))).get("count"));
+        assertEquals(new Double(96), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("3"))).get("count"));
     }
 }
