@@ -10,10 +10,11 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import static org.junit.Assert.*;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
+import org.monitoring.queryapi.preaggregation.Preaggregate;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongoMR;
 
 /**
  *

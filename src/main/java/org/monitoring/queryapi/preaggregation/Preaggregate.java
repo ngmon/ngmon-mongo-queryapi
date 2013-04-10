@@ -1,6 +1,7 @@
-package org.monitoring.queryapi;
+package org.monitoring.queryapi.preaggregation;
 
 import java.util.concurrent.TimeUnit;
+import org.monitoring.queryapi.Event;
 
 /**
  *

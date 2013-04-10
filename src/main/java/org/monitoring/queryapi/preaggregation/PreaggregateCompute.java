@@ -1,4 +1,6 @@
-package org.monitoring.queryapi;
+package org.monitoring.queryapi.preaggregation;
+
+import org.monitoring.queryapi.Event;
 
 /**
  * Interface for aggregation recomputing. Make implementation with public fields into which are

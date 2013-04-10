@@ -1,4 +1,4 @@
-package org.monitoring.queryapi;
+package org.monitoring.queryapi.preaggregation;
 
 import com.google.code.morphia.Datastore;
 import com.google.code.morphia.Morphia;
@@ -11,8 +11,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.monitoring.queryapi.db.PostgreSQLDatabase;
-import org.monitoring.queryapi.db.PostgreSQLDatabaseMapper;
+import org.monitoring.queryapi.Event;
+import org.monitoring.queryapi.Manager;
+import org.monitoring.queryapi.preaggregation.postgre.PostgreSQLDatabase;
+import org.monitoring.queryapi.preaggregation.postgre.PostgreSQLDatabaseMapper;
 
 /**
  *

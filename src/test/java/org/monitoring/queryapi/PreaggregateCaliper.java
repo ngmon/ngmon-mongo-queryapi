@@ -1,5 +1,11 @@
 package org.monitoring.queryapi;
 
+import org.monitoring.queryapi.preaggregation.PreaggregateCompute;
+import org.monitoring.queryapi.preaggregation.Preaggregate;
+import org.monitoring.queryapi.preaggregation.PreaggregateComputeAvg;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongo;
+import org.monitoring.queryapi.preaggregation.PreaggregateSQL;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongoMR;
 import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
 import com.google.code.morphia.Morphia;
@@ -14,7 +20,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
-import org.monitoring.queryapi.db.PostgreSQLDatabase;
+import org.monitoring.queryapi.preaggregation.postgre.PostgreSQLDatabase;
 
 /**
  *

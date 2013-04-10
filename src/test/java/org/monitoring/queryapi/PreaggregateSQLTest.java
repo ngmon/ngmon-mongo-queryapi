@@ -1,5 +1,6 @@
 package org.monitoring.queryapi;
 
+import org.monitoring.queryapi.preaggregation.PreaggregateSQL;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -7,7 +8,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.monitoring.queryapi.db.PostgreSQLDatabase;
+import org.monitoring.queryapi.preaggregation.postgre.PostgreSQLDatabase;
 
 
 /**

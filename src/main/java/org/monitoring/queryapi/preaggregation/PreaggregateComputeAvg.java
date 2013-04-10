@@ -1,4 +1,6 @@
-package org.monitoring.queryapi;
+package org.monitoring.queryapi.preaggregation;
+
+import org.monitoring.queryapi.Event;
 
 /**
  *

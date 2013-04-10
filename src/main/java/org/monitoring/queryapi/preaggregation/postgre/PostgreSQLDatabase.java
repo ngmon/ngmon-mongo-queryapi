@@ -1,4 +1,4 @@
-package org.monitoring.queryapi.db;
+package org.monitoring.queryapi.preaggregation.postgre;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

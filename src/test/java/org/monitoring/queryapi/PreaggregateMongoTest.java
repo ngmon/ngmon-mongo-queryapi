@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.monitoring.queryapi.preaggregation.Preaggregate;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongo;
 
 /**
  *
