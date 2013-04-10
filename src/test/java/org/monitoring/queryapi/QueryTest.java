@@ -32,7 +32,7 @@ public class QueryTest {
     public static void setUp() {
         m.setCollection("querytest");
         col = m.getCollection();
-        m.executeJSFromFile("src/main/resources/store_functions.js");
+        m.executeJSSaveFromDefaultFile();
         col.drop();
         morphia.map(Document.class);
         Datastore ds = morphia.createDatastore(m.getDb().getMongo(), m.getDb().toString());

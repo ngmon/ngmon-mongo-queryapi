@@ -47,7 +47,7 @@ public class PreaggregateCaliper extends SimpleBenchmark {
         col = m.getDb().getCollection("aggregate");
         m.getDb().dropDatabase();
         col.createIndex(new BasicDBObject("date", 1));
-        m.executeJSFromDefaultFile();
+        m.executeJSSaveFromDefaultFile();
         PostgreSQLDatabase postgre = new PostgreSQLDatabase();
         postgre.dropTable();
         String[] fields = {"avg", "count", "sum"};

@@ -164,7 +164,7 @@ public class Manager {
         executeJS(cmd);
     }
     
-    public void executeJSFromDefaultFile() {
+    public void executeJSSaveFromDefaultFile() {
         String cmd = readFile("src/main/resources/js_command.js");
         executeJS("db.system.js.save(" + cmd + ");");
     }
@@ -177,6 +177,7 @@ public class Manager {
             is = new FileInputStream(f);
         } catch (IOException ex) {
             System.err.println("no file");
+            throw new RuntimeException("no file find on path: " + path);
         }
         if (is == null) {
             is = Manager.class.getResourceAsStream(path);
