@@ -1,37 +1,31 @@
 package org.monitoring.queryapi;
 
-import com.google.code.morphia.Morphia;
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBCollection;
-import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.monitoring.queryapi.db.PostgreSQLDatabase;
 
-import static org.junit.Assert.*;
 
 /**
  *
  * @author Michal Dubravcik
  */
 
-public class PreaggregateTest {
+public class PreaggregateSQLTest {
 
     static Manager m = new Manager();
     static List<Event> list = new ArrayList<Event>();
-    static Morphia morphia = new Morphia();
-    static DBCollection col;
+    static PostgreSQLDatabase postgre = new PostgreSQLDatabase();
 
     @BeforeClass
     public static void setUp() throws InterruptedException {
-        col = m.getDb().getCollection("aggregate");
-        m.getDb().dropDatabase();
+        postgre.dropTable();        
+        String[] fields = {"avg", "count", "sum"};
+        postgre.createTable("aggregate60", 60, 1440, fields);
         Calendar cal = new GregorianCalendar(2013, 1, 2, 15, 0, 0);        
         cal.set(Calendar.MILLISECOND, 0);
         for (int i = 0; i < 100; i++) {
@@ -47,12 +41,12 @@ public class PreaggregateTest {
 
     @Test
     public void saveEvent() {
-        Preaggregate preaggregate = new Preaggregate(col);
-        PreaggregateCompute computer = new PreaggregateComputeAvg();
+        PreaggregateSQL preaggregate = new PreaggregateSQL();
         for(Event event : list){
-            int[][] times = {{60, 1440,0,0},{1440, 2880,0,0},{2880, 2880,0,0}};
-            preaggregate.saveEvent(TimeUnit.MINUTES, times, computer, event);
+            int[][] times = {{60, 1440,0,0}/*,{1440, 2880,0,0},{2880, 2880,0,0}*/};
+            preaggregate.saveEvent(TimeUnit.MINUTES, times, event);
         }
+        /*
         DBCollection c = m.getDb().getCollection("aggregate1440");
         Calendar cal = new GregorianCalendar(2013, 1, 2, 1, 0, 0);
         Date d = cal.getTime();
@@ -73,5 +67,6 @@ public class PreaggregateTest {
         doc = c.findOne(new BasicDBObject("date", cal.getTime()));
         assertNotNull("empty response from DB aggregate2880", doc);
         assertEquals(new Double(100), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("0"))).get("count"));
+        */
     }
 }

@@ -9,7 +9,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -21,13 +20,12 @@ import static org.junit.Assert.*;
  * @author Michal Dubravcik
  */
 
-public class PreaggregateTestMR {
+public class PreaggregateMongoMRTest {
 
     static Manager m = new Manager();
     static List<Event> list = new ArrayList<Event>();
     static Morphia morphia = new Morphia();
     static DBCollection col;
-    static PreaggregateCompute computer = new PreaggregateComputeAvg();
 
     @BeforeClass
     public static void setUp() throws InterruptedException {
@@ -49,11 +47,11 @@ public class PreaggregateTestMR {
 
     @Test
     public void saveEvent() {
-        Preaggregate preaggregate = new Preaggregate(col);
+        Preaggregate preaggregate = new PreaggregateMongoMR(col);
         TimeUnit unit = TimeUnit.MINUTES;
         int[][] times = {{1440, 10080,1,1}}; // dayily(in week)       
         for(Event event : list){
-            preaggregate.saveEventMR(unit, times, event, false);            
+            preaggregate.saveEvent(unit, times, event);            
             //preaggregate.saveEvent(unit, times, computer, event);            
         }
         DBCollection c = m.getDb().getCollection("aggregate1440");

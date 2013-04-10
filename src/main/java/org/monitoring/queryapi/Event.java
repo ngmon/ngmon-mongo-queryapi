@@ -16,6 +16,23 @@ public class Event {
     private ObjectId id;
     private Date date;
     private double value;
+    private String source;
+
+    public ObjectId getId() {
+        return id;
+    }
+
+    public void setId(ObjectId id) {
+        this.id = id;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
 
 
     public Date getDate() {

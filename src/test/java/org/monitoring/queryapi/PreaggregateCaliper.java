@@ -6,6 +6,7 @@ import com.google.code.morphia.Morphia;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCollection;
+import com.mongodb.WriteConcern;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -13,6 +14,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import org.monitoring.queryapi.db.PostgreSQLDatabase;
 
 /**
  *
@@ -27,8 +29,12 @@ public class PreaggregateCaliper extends SimpleBenchmark {
     int from, to;
     PreaggregateCompute computer = new PreaggregateComputeAvg();
     TimeUnit unit = TimeUnit.MINUTES;
+    
     int[][] times = {{60, 1440},{1440, 43200,3,3},{1440,43200},{43200,525600}};
-    Preaggregate preaggregate = new Preaggregate(col);
+    
+    Preaggregate preaggregate = new PreaggregateMongo(col);
+    Preaggregate preaggregateMR = new PreaggregateMongoMR(col);
+    Preaggregate preaggregateSQL = new PreaggregateSQL();
 
     @Override
     protected void setUp() {
@@ -36,10 +42,14 @@ public class PreaggregateCaliper extends SimpleBenchmark {
         m.getDb().dropDatabase();
         col.createIndex(new BasicDBObject("date", 1));
         m.executeJSFromDefaultFile();
+        PostgreSQLDatabase postgre = new PostgreSQLDatabase();
+        postgre.dropTable();
+        String[] fields = {"avg", "count", "sum"};
+        postgre.createTable("aggregate60", 60, 1440, fields);
         Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
         from = 0;
-        to = 192;
+        to = 200;
         for (int i = from; i < to; i++) {
             Event event = new Event();
             event.setDate(cal.getTime());            
@@ -56,13 +66,19 @@ public class PreaggregateCaliper extends SimpleBenchmark {
 
     public void timeClassicAggregate(int reps) {
         for (int i = 0; i < reps; i++) {
-            preaggregate.saveEvent(TimeUnit.MINUTES, times, computer, list.get(i));
+            preaggregate.saveEvent(unit, times, list.get(i));
         }
     }
 
     public void timeMapReduceAggregate(int reps) {
         for (int i = 0; i < reps; i++) {
-            preaggregate.saveEventMR(unit, times, list.get(i), true);
+            preaggregateMR.saveEvent(unit, times, list.get(i));
+        }
+    }
+    
+    public void timeSQLAggregate(int reps) {
+        for (int i = 0; i < reps; i++) {
+            preaggregateSQL.saveEvent(unit, times, list.get(i));
         }
     }
 
