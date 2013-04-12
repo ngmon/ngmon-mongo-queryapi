@@ -5,16 +5,10 @@ import com.google.code.morphia.Morphia;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
-import com.mongodb.MapReduceCommand;
-import com.mongodb.MapReduceOutput;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.Event;
 import org.monitoring.queryapi.Manager;
-import org.monitoring.queryapi.preaggregation.postgre.PostgreSQLDatabase;
-import org.monitoring.queryapi.preaggregation.postgre.PostgreSQLDatabaseMapper;
 
 /**
  *
@@ -27,7 +21,6 @@ public class PreaggregateMongo implements Preaggregate {
     DBObject allocateObject;
     Morphia morphia = new Morphia();
     String aggField = "agg";
-    PostgreSQLDatabase postgre = new PostgreSQLDatabase();
 
     public PreaggregateMongo(DBCollection col) {
         this.col = col;
@@ -85,7 +78,8 @@ public class PreaggregateMongo implements Preaggregate {
             }
             i++;
 
-            DBCollection localCol = col.getDB().getCollection(colName + timeActual);
+            DBCollection localCol = col.getDB()
+                    .getCollection(colName + timeActual + ".l" + rangeLeft + ".r" + rangeRight);
 
             for (int k = -rangeLeft; k <= rangeRight; k++) {
                 long difference = unit.toMillis(timeActual * k);

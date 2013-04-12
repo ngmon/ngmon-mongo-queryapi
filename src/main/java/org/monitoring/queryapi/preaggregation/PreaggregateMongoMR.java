@@ -8,14 +8,10 @@ import com.mongodb.DBObject;
 import com.mongodb.MapReduceCommand;
 import com.mongodb.MapReduceOutput;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.Event;
 import org.monitoring.queryapi.Field;
 import org.monitoring.queryapi.Manager;
-import org.monitoring.queryapi.preaggregation.postgre.PostgreSQLDatabase;
-import org.monitoring.queryapi.preaggregation.postgre.PostgreSQLDatabaseMapper;
 
 /**
  *
@@ -28,7 +24,6 @@ public class PreaggregateMongoMR implements Preaggregate {
     DBObject allocateObject;
     Morphia morphia = new Morphia();
     String aggField = "agg";
-    PostgreSQLDatabase postgre = new PostgreSQLDatabase();
 
     public PreaggregateMongoMR(DBCollection col) {
         this.col = col;
@@ -92,7 +87,8 @@ public class PreaggregateMongoMR implements Preaggregate {
                 Long fieldTime = middle.getTime() % unit.toMillis(next)
                         / unit.toMillis(actual);
 
-                DBCollection localCol = col.getDB().getCollection("aggregate" + actual);
+                DBCollection localCol = col.getDB()
+                        .getCollection(colName + actual + ".l" + rangeLeft + ".r" + rangeRight);
 
                 Date aggDate = new Date(middle.getTime() - middle.getTime() % unit.toMillis(next));
 
