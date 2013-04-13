@@ -70,7 +70,7 @@ public class PreaggregateCaliper extends SimpleBenchmark {
         //m.getDb().dropDatabase();
     }
 
-    public void timeClassicAggregate(int reps) {
+    public void imeClassicAggregate(int reps) {
         for (int i = 0; i < reps; i++) {
             preaggregate.saveEvent(unit, times, list.get(i));
         }
@@ -82,7 +82,7 @@ public class PreaggregateCaliper extends SimpleBenchmark {
         }
     }
     
-    public void timeSQLAggregate(int reps) {
+    public void imeSQLAggregate(int reps) {
         for (int i = 0; i < reps; i++) {
             preaggregateSQL.saveEvent(unit, times, list.get(i));
         }

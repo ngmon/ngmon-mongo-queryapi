@@ -137,5 +137,7 @@ public class PostgreSQLDatabase {
         
         execute("CREATE TABLE event(id serial NOT NULL, source character(100),date timestamp without time zone,"
                 + "value integer, CONSTRAINT pk_id PRIMARY KEY (id))");
+        execute("CREATE INDEX date_agg ON aggregate60 (date);");
+        execute("CREATE INDEX date_event ON event (date);");
     }
 }
