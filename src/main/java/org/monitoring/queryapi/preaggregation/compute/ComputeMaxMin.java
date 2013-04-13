@@ -1,4 +1,4 @@
-package org.monitoring.queryapi.preaggregation;
+package org.monitoring.queryapi.preaggregation.compute;
 
 import org.monitoring.queryapi.Event;
 
@@ -6,7 +6,7 @@ import org.monitoring.queryapi.Event;
  *
  * @author Michal Dubravcik
  */
-public class PreaggregateComputeMaxMin implements PreaggregateCompute {
+public class ComputeMaxMin implements Compute {
 
     public double max = 0;
     public double min = 0;

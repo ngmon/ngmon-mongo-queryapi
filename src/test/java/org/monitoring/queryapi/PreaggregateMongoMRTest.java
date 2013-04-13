@@ -55,11 +55,11 @@ public class PreaggregateMongoMRTest {
             preaggregate.saveEvent(unit, times, event);            
             //preaggregate.saveEvent(unit, times, computer, event);            
         }
-        DBCollection c = m.getDb().getCollection("aggregate1440");
+        DBCollection c = m.getDb().getCollection("aggregate1440.l1.r1");
         Calendar cal = new GregorianCalendar(2013, 0, 31, 1, 0, 0);
         Date d = cal.getTime();
         DBObject doc = c.findOne(new BasicDBObject("date", cal.getTime()));        
-        assertNotNull("empty response from DB aggregate1440", doc);
+        assertNotNull("empty response from DB aggregate1440.l1.r1", doc);
         assertEquals(new Double(96), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("0"))).get("count"));
         assertEquals(new Double(192), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("1"))).get("count"));
         assertEquals(new Double(192), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("2"))).get("count"));

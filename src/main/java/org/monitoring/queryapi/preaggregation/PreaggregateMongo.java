@@ -1,5 +1,7 @@
 package org.monitoring.queryapi.preaggregation;
 
+import org.monitoring.queryapi.preaggregation.compute.ComputeAvg;
+import org.monitoring.queryapi.preaggregation.compute.Compute;
 import com.google.code.morphia.Datastore;
 import com.google.code.morphia.Morphia;
 import com.mongodb.BasicDBObjectBuilder;
@@ -59,7 +61,7 @@ public class PreaggregateMongo implements Preaggregate {
     public void saveEvent(TimeUnit unit, int[][] times, Event event) {
         Long fieldTime;
         int i = 0;
-        PreaggregateCompute computer = new PreaggregateComputeAvg();
+        Compute computer = new ComputeAvg();
 
         morphia.map(Event.class);
         Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
@@ -78,8 +80,12 @@ public class PreaggregateMongo implements Preaggregate {
             }
             i++;
 
+            String range = "";
+            if (rangeLeft != 0 || rangeRight != 0) {
+                range = ".l" + rangeLeft + ".r" + rangeRight;
+            }
             DBCollection localCol = col.getDB()
-                    .getCollection(colName + timeActual + ".l" + rangeLeft + ".r" + rangeRight);
+                    .getCollection(colName + timeActual + range);
 
             for (int k = -rangeLeft; k <= rangeRight; k++) {
                 long difference = unit.toMillis(timeActual * k);
@@ -101,7 +107,7 @@ public class PreaggregateMongo implements Preaggregate {
                 DBObject aggregatedDoc = localCol.findOne(identificationOldDay, project);
 
                 /* reset initial PreaggregateCompute fields  */
-                PreaggregateCompute comp = computer;
+                Compute comp = computer;
                 try {
                     comp = computer.getClass().newInstance();
                 } catch (InstantiationException ex) {
@@ -162,6 +168,4 @@ public class PreaggregateMongo implements Preaggregate {
             }
         }
     }
-
-    
 }

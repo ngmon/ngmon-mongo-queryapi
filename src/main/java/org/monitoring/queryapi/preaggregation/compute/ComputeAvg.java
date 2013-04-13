@@ -1,4 +1,4 @@
-package org.monitoring.queryapi.preaggregation;
+package org.monitoring.queryapi.preaggregation.compute;
 
 import org.monitoring.queryapi.Event;
 
@@ -6,7 +6,7 @@ import org.monitoring.queryapi.Event;
  *
  * @author Michal Dubravcik
  */
-public class PreaggregateComputeAvg implements PreaggregateCompute, Cloneable {
+public class ComputeAvg implements Compute, Cloneable {
 
     public double sum = 0;
     public double count = 0;

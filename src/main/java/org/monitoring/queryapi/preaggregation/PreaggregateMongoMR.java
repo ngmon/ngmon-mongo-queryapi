@@ -87,8 +87,12 @@ public class PreaggregateMongoMR implements Preaggregate {
                 Long fieldTime = middle.getTime() % unit.toMillis(next)
                         / unit.toMillis(actual);
 
+                String range = "";
+                if (rangeLeft != 0 || rangeRight != 0 ){
+                    range = ".l" + rangeLeft + ".r" + rangeRight;
+                }
                 DBCollection localCol = col.getDB()
-                        .getCollection(colName + actual + ".l" + rangeLeft + ".r" + rangeRight);
+                        .getCollection(colName + actual + range);
 
                 Date aggDate = new Date(middle.getTime() - middle.getTime() % unit.toMillis(next));
 

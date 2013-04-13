@@ -1,4 +1,4 @@
-package org.monitoring.queryapi.preaggregation;
+package org.monitoring.queryapi.preaggregation.compute;
 
 import org.monitoring.queryapi.Event;
 
@@ -8,7 +8,7 @@ import org.monitoring.queryapi.Event;
  * values.
  * @author Michal Dubravcik
  */
-public interface PreaggregateCompute {
+public interface Compute {
 
     public void recompute(Event event);
     
