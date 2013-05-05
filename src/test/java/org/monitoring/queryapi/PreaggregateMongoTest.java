@@ -48,10 +48,13 @@ public class PreaggregateMongoTest {
     @Test
     public void saveEvent() {
         Preaggregate preaggregate = new PreaggregateMongo(col);
+        Date start = new Date();
         for(Event event : list){
             int[][] times = {{60, 1440,0,0},{1440, 2880,0,0},{2880, 2880,0,0}};
             preaggregate.saveEvent(TimeUnit.MINUTES, times, event);
         }
+        Date end = new Date();
+        System.out.println("Total ms: " +  (end.getTime() - start.getTime()));
         DBCollection c = m.getDb().getCollection("aggregate1440");
         Calendar cal = new GregorianCalendar(2013, 1, 2, 1, 0, 0);
         Date d = cal.getTime();

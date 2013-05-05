@@ -8,6 +8,8 @@ import com.mongodb.DBObject;
 import com.mongodb.MapReduceCommand;
 import com.mongodb.MapReduceOutput;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.Event;
 import org.monitoring.queryapi.Field;
@@ -118,4 +120,5 @@ public class PreaggregateMongoMR implements Preaggregate {
             }
         }
     }
+   
 }

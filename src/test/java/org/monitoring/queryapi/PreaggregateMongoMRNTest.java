@@ -3,7 +3,6 @@ package org.monitoring.queryapi;
 import com.google.code.morphia.Morphia;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
-import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -14,14 +13,14 @@ import static org.junit.Assert.*;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.monitoring.queryapi.preaggregation.Preaggregate;
-import org.monitoring.queryapi.preaggregation.PreaggregateMongoMR;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRN;
 
 /**
  *
  * @author Michal Dubravcik
  */
 
-public class PreaggregateMongoMRTest {
+public class PreaggregateMongoMRNTest {
 
     static Manager m = new Manager();
     static List<Event> list = new ArrayList<Event>();
@@ -36,10 +35,10 @@ public class PreaggregateMongoMRTest {
         m.executeJSSaveFromDefaultFile();
         Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
-        for (int i = 0; i < 192; i++) {
+        for (int i = 0; i < 100; i++) {
             Event event = new Event();
             event.setDate(cal.getTime());
-            cal.setTime(new Date(cal.getTime().getTime() + 1000*60*15)); 
+            cal.setTime(new Date(cal.getTime().getTime() + 1000*60*60*12)); 
             event.setValue(10);
             list.add(event);
         }
@@ -48,23 +47,14 @@ public class PreaggregateMongoMRTest {
 
     @Test
     public void saveEvent() {
-        Preaggregate preaggregate = new PreaggregateMongoMR(col);
+        Preaggregate preaggregate = new PreaggregateMongoMRN(col);
         TimeUnit unit = TimeUnit.MINUTES;
-        int[][] times = {{1440, 10080}}; // dayily(in week)       
+        int[][] times = {{1440, 10080,0,0}}; // 1,1    
         Date start = new Date();
         for(Event event : list){
-            preaggregate.saveEvent(unit, times, event);                        
+            preaggregate.saveEvent(unit, times, event);            
         }
         Date end = new Date();
         System.out.println("Total ms: " +  (end.getTime() - start.getTime()));
-        DBCollection c = m.getDb().getCollection("aggregate1440.l1.r1");
-        Calendar cal = new GregorianCalendar(2013, 0, 31, 1, 0, 0);
-        Date d = cal.getTime();
-        DBObject doc = c.findOne(new BasicDBObject("date", cal.getTime()));        
-        assertNotNull("empty response from DB aggregate1440.l1.r1", doc);
-        assertEquals(new Double(96), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("0"))).get("count"));
-        assertEquals(new Double(192), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("1"))).get("count"));
-        assertEquals(new Double(192), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("2"))).get("count"));
-        assertEquals(new Double(96), (Double) ((DBObject)(((DBObject)doc.get("agg")).get("3"))).get("count"));
     }
 }

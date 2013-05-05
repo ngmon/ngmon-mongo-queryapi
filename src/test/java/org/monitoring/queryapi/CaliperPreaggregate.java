@@ -13,16 +13,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.preaggregation.Preaggregate;
-import org.monitoring.queryapi.preaggregation.compute.Compute;
-import org.monitoring.queryapi.preaggregation.compute.ComputeAvg;
 import org.monitoring.queryapi.preaggregation.PreaggregateMongo;
 import org.monitoring.queryapi.preaggregation.PreaggregateMongoMR;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRN;
+import org.monitoring.queryapi.preaggregation.compute.Compute;
+import org.monitoring.queryapi.preaggregation.compute.ComputeAvg;
 
 /**
  *
  * @author Michal Dubravcik
  */
-public class PreaggregateCaliper extends SimpleBenchmark {
+public class CaliperPreaggregate extends SimpleBenchmark {
 
     static Manager m = new Manager();
     static List<Event> list = new ArrayList<Event>();
@@ -73,6 +74,6 @@ public class PreaggregateCaliper extends SimpleBenchmark {
 
     public static void main(String[] args) throws Exception {
         Locale.setDefault(Locale.US);
-        Runner.main(PreaggregateCaliper.class, args);
+        Runner.main(CaliperPreaggregate.class, args);
     }
 }

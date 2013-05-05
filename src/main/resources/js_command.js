@@ -104,6 +104,36 @@
         return output; 
     }
 },{
+    _id:"preaggregate_map_inc", 
+    value : 
+    function(x) {                                        
+        id = new Date(x.date.getTime() - x.date.getTime() % nextMillis);
+        f = x.date.getTime() % nextMillis;
+        field =  (f - f % actualMillis) / actualMillis; 
+        var output = {};
+        output[field] = {sum : x.value, count : 1, avg : x.value };
+        emit(id, output);        
+    }
+},{
+    _id:"preaggregate_reduce_inc", 
+    value :        
+    function(id, values){           
+        output = {};
+        for(i=0; i<nextMillis/actualMillis;i++){
+            output[i] = {sum : 0, count : 0, avg : 0};
+        }
+        for(i = 0; i<values.length; i++){
+            doc = values[i];
+            for(key in doc){
+                output[key].sum += doc[key].sum;
+                output[key].count += doc[key].count;
+                if(output[key].count != 0)
+                    output[key].avg = output[key].sum / output[key].count;
+            }
+        }
+        return output; 
+    }
+},{
     _id:"preaggregate_map_upper", 
     value : 
     function(x) {  
