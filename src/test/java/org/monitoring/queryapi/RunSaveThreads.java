@@ -42,10 +42,10 @@ public class RunSaveThreads {
         long startTime = System.nanoTime();
         for(int i=0; i < 10; i++){
             List<Event> l = new ArrayList<Event>();
-            for(int j = 0; j < 20; j++){
+            for(int j = 0; j < 500; j++){
                 l.add(list.get(j*10 + i));
             }
-            SaveThread s1 = new SaveThread(latch, col,l);
+            SaveThread s1 = new SaveThread(i,latch, col,l);
             s1.start();
         }       
         

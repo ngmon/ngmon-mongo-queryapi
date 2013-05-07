@@ -35,7 +35,7 @@ public class PreaggregateMongoMRNTest {
         m.executeJSSaveFromDefaultFile();
         Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1000; i++) {
             Event event = new Event();
             event.setDate(cal.getTime());
             cal.setTime(new Date(cal.getTime().getTime() + 1000*60*60*12)); 

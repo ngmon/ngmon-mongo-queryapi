@@ -22,11 +22,13 @@ public class SaveThread extends Thread {
     TimeUnit unit = TimeUnit.MINUTES;
     int[][] times = {{60, 1440}, {1440, 43200}};
     CountDownLatch latch;
+    int i;
 
-    SaveThread(CountDownLatch latch, DBCollection col, List<Event> list) {
+    SaveThread(int i,CountDownLatch latch, DBCollection col, List<Event> list) {
         this.latch = latch;
         this.col = col;
         this.list = list;
+        this.i = i;
         preaggregate = new PreaggregateMongoMRN(col);
     }
 
