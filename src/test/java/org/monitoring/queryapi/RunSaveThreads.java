@@ -8,7 +8,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -27,7 +26,6 @@ public class RunSaveThreads {
         col = m.getDb().getCollection("aggregate"); 
         m.getDb().dropDatabase();
         col.createIndex(new BasicDBObject("date", 1));
-        m.executeJSSaveFromDefaultFile();
         Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
         for (int i = 0; i < 5000; i++) {

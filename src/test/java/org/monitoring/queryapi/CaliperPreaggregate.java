@@ -15,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.preaggregation.Preaggregate;
 import org.monitoring.queryapi.preaggregation.PreaggregateMongo;
 import org.monitoring.queryapi.preaggregation.PreaggregateMongoMR;
-import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRN;
 import org.monitoring.queryapi.preaggregation.compute.Compute;
 import org.monitoring.queryapi.preaggregation.compute.ComputeAvg;
 
@@ -41,7 +40,6 @@ public class CaliperPreaggregate extends SimpleBenchmark {
         col = m.getDb().getCollection("aggregate");
         m.getDb().dropDatabase();
         col.createIndex(new BasicDBObject("date", 1));
-        m.executeJSSaveFromDefaultFile();
         Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
         from = 0;
