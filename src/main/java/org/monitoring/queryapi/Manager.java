@@ -4,10 +4,7 @@ import com.mongodb.CommandResult;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.Mongo;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoOptions;
-import com.mongodb.WriteConcern;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,12 +12,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.UnknownHostException;
-import java.util.HashSet;
 import java.util.Properties;
-import java.util.Set;
 import org.apache.log4j.Logger;
-import org.monitoring.queryapi.preaggregation.Preaggregate;
-import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
 
 /**
  *
@@ -60,13 +53,12 @@ public class Manager {
 
     /**
      * Manager connects on Mongo server specified in file config.properties if no file found, tries
-     * to connect on "localhost:27017" and DB "test"
+     * to connect on localhost:27017 and db name test
      *
      */
     public Manager() {
         loadProperties();
         connect();
-        executeJSSaveFromDefaultFile();
     }
 
     /**
@@ -74,11 +66,9 @@ public class Manager {
      */
     private void connect() {
         try {
-            MongoClientOptions options = MongoClientOptions.builder()
-                    .connectTimeout(1000)
-                    .writeConcern(WriteConcern.SAFE)
-                    .build();            
-            m = new MongoClient(host + ":" + port, options);
+            MongoOptions options = new MongoOptions();
+            options.connectTimeout = 100;
+            m = new Mongo(host + ":" + port, options);
             db = m.getDB(dbName);
             db.collectionExists("test");
         } catch (UnknownHostException ex) {
@@ -140,12 +130,6 @@ public class Manager {
         return new Query(col);
     }
     
-    /**
-     * Create query instance used for constructing complex db queries that will be executed on
-     * default collection set in Manager
-     *
-     * @return new query with collection set
-     */
     public Query createQuery(){
         if(col == null){
             throw new NullPointerException("Collection was not set");
@@ -154,37 +138,19 @@ public class Manager {
     }
     
     /**
-     * Create Preaggregation instance used for saving events and actualizing aggregation 
-     * statistics online.
-     * Incremental map reduce implementation is used as it is most prefered.
-     *
-     * @param col collection for saving events
-     * @return preaggregation with collection set
-     */
-    public Preaggregate createPreaggregate(String collectionName){
-        setCollection(collectionName);
-        return new PreaggregateMongoMRI(col);
-    }
-    
-    /**
-     * Return Mongo DB instance which is Manager connected with
+     * Return Mongo DB instance
      */
     public DB getDb() {
         return db;
     }
 
     /**
-     * Return Mongo DB Collection which is set as default in Manager
+     * Return Mongo DB Collection
      */
     public DBCollection getCollection() {
         return col;
     }
     
-    /**
-     * Set default collection which can be later used for creating Query or Preaggregation instances
-     * @param collectionName
-     * @return Manager
-     */
     public Manager setCollection(String collectionName){
         col = db.getCollection(collectionName);        
         return this;
@@ -198,7 +164,7 @@ public class Manager {
         executeJS(cmd);
     }
     
-    private void executeJSSaveFromDefaultFile() {
+    public void executeJSSaveFromDefaultFile() {
         String cmd = readFile("src/main/resources/js_command.js");
         executeJS("db.system.js.save(" + cmd + ");");
     }

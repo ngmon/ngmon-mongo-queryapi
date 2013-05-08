@@ -13,14 +13,14 @@ import static org.junit.Assert.*;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.monitoring.queryapi.preaggregation.Preaggregate;
-import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRN;
 
 /**
  *
  * @author Michal Dubravcik
  */
 
-public class PreaggregateMongoMRITest {
+public class PreaggregateMongoMRNTest {
 
     static Manager m = new Manager();
     static List<Event> list = new ArrayList<Event>();
@@ -32,7 +32,7 @@ public class PreaggregateMongoMRITest {
         col = m.getDb().getCollection("aggregate"); 
         m.getDb().dropDatabase();
         col.createIndex(new BasicDBObject("date", 1));
-        
+        m.executeJSSaveFromDefaultFile();
         Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
         for (int i = 0; i < 1000; i++) {
@@ -47,7 +47,7 @@ public class PreaggregateMongoMRITest {
 
     @Test
     public void saveEvent() {
-        Preaggregate preaggregate = new PreaggregateMongoMRI(col);
+        Preaggregate preaggregate = new PreaggregateMongoMRN(col);
         TimeUnit unit = TimeUnit.MINUTES;
         int[][] times = {{1440, 10080,0,0}}; // 1,1    
         Date start = new Date();

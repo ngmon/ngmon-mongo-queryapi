@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.preaggregation.Preaggregate;
-import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRN;
 
 /**
  *
@@ -29,7 +29,7 @@ public class SaveThread extends Thread {
         this.col = col;
         this.list = list;
         this.i = i;
-        preaggregate = new PreaggregateMongoMRI(col);
+        preaggregate = new PreaggregateMongoMRN(col);
     }
 
     @Override
