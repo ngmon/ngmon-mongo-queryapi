@@ -8,15 +8,9 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MapReduceCommand;
 import com.mongodb.MapReduceOutput;
-import com.mongodb.WriteConcern;
-import java.text.DateFormat;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.bson.types.ObjectId;
-import org.monitoring.queryapi.Aggregation;
 import org.monitoring.queryapi.Event;
 import org.monitoring.queryapi.Field;
 import org.monitoring.queryapi.Manager;
@@ -25,7 +19,7 @@ import org.monitoring.queryapi.Manager;
  *
  * @author Michal Dubravcik
  */
-public class PreaggregateMongoMRN implements Preaggregate {
+public class PreaggregateMongoMRI implements Preaggregate {
 
     private DBCollection col;
     String colName;
@@ -33,7 +27,7 @@ public class PreaggregateMongoMRN implements Preaggregate {
     Morphia morphia = new Morphia();
     String aggField = "agg";
 
-    public PreaggregateMongoMRN(DBCollection col) {
+    public PreaggregateMongoMRI(DBCollection col) {
         this.col = col;
         colName = col.getName();
         allocateObject = (DBObject) com.mongodb.util.JSON.parse(Manager.readFile("src/main/resources/js_allocate.js"));

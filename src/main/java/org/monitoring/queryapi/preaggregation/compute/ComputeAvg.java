@@ -2,6 +2,7 @@ package org.monitoring.queryapi.preaggregation.compute;
 
 import org.monitoring.queryapi.Event;
 
+
 /**
  *
  * @author Michal Dubravcik

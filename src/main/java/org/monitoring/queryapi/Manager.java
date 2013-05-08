@@ -14,6 +14,8 @@ import java.io.InputStreamReader;
 import java.net.UnknownHostException;
 import java.util.Properties;
 import org.apache.log4j.Logger;
+import org.monitoring.queryapi.preaggregation.Preaggregate;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
 
 /**
  *
@@ -59,6 +61,7 @@ public class Manager {
     public Manager() {
         loadProperties();
         connect();
+        executeJSSaveFromDefaultFile();
     }
 
     /**
@@ -130,11 +133,30 @@ public class Manager {
         return new Query(col);
     }
     
+    /**
+     * Create query instance used for constructing complex db queries that will be executed on default collection
+     *
+     * @param col collection in db
+     * @return new query with collection set
+     */
     public Query createQuery(){
         if(col == null){
             throw new NullPointerException("Collection was not set");
         }
         return new Query(col);
+    }
+    
+    /**
+     * Create preaggregation instance used for saving events into 
+     * specified collection and actualizing statistics via
+     * incremental map reduce (as it is prefered)
+     *
+     * @param col collection into event are saved
+     * @return preaggregation instance with collection set
+     */
+    public Preaggregate createPreaggregate(String collectionName){
+        setCollection(collectionName);
+        return new PreaggregateMongoMRI(col);
     }
     
     /**
@@ -164,7 +186,7 @@ public class Manager {
         executeJS(cmd);
     }
     
-    public void executeJSSaveFromDefaultFile() {
+    private void executeJSSaveFromDefaultFile() {
         String cmd = readFile("src/main/resources/js_command.js");
         executeJS("db.system.js.save(" + cmd + ");");
     }
