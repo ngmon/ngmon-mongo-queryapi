@@ -25,7 +25,7 @@ import org.monitoring.queryapi.Manager;
  *
  * @author Michal Dubravcik
  */
-public class PreaggregateMongoMRN implements Preaggregate {
+public class PreaggregateMongoMRI implements Preaggregate {
 
     private DBCollection col;
     String colName;
@@ -33,7 +33,7 @@ public class PreaggregateMongoMRN implements Preaggregate {
     Morphia morphia = new Morphia();
     String aggField = "agg";
 
-    public PreaggregateMongoMRN(DBCollection col) {
+    public PreaggregateMongoMRI(DBCollection col) {
         this.col = col;
         colName = col.getName();
         allocateObject = (DBObject) com.mongodb.util.JSON.parse(Manager.readFile("src/main/resources/js_allocate.js"));
