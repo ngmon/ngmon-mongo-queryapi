@@ -2,6 +2,7 @@ package org.monitoring.queryapi.preaggregation;
 
 import com.google.code.morphia.Datastore;
 import com.google.code.morphia.Morphia;
+import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
@@ -11,7 +12,6 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.Event;
 import org.monitoring.queryapi.Field;
-import org.monitoring.queryapi.Manager;
 
 /**
  *
@@ -27,8 +27,8 @@ public class PreaggregateMongoMR implements Preaggregate {
 
     public PreaggregateMongoMR(DBCollection col) {
         this.col = col;
-        colName = col.getName();
-        allocateObject = (DBObject) com.mongodb.util.JSON.parse(Manager.readFile("src/main/resources/js_allocate.js"));
+        colName = col.getName();       
+        col.createIndex(new BasicDBObject("date", 1));
     }
 
     @Override
@@ -44,7 +44,7 @@ public class PreaggregateMongoMR implements Preaggregate {
                 before = times[i - 1][0];
             }
             int actual = times[i][0];
-            int next = times[i][1];
+            int next = times[i][1] * times[i][0];
             int rangeLeft = 0;
             if (times[i].length > 2) {
                 rangeLeft = times[i][2];

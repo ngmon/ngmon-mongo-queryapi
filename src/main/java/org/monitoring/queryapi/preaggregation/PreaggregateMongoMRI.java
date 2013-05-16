@@ -26,24 +26,32 @@ public class PreaggregateMongoMRI implements Preaggregate {
     DBObject allocateObject;
     Morphia morphia = new Morphia();
     String aggField = "agg";
+    int countForMR = 20;
 
     public PreaggregateMongoMRI(DBCollection col) {
         this.col = col;
         colName = col.getName();
-        allocateObject = (DBObject) com.mongodb.util.JSON.parse(Manager.readFile("src/main/resources/js_allocate.js"));
+        col.createIndex(new BasicDBObject("date", 1));
+    }
+    
+    public void setCountForMr(int count){
+        countForMR = count;
+    }
+    
+    public int getCountForMr(){
+        return countForMR;
     }
 
     /**
-     * Save event into DB and perform actualization of aggregations via incremental
-     * map-reduce 
+     * Save event into DB and perform actualization of aggregations via incremental map-reduce
+     *
      * @param unit
      * @param times
-     * @param event 
+     * @param event
      */
     @Override
     public void saveEvent(TimeUnit unit, int[][] times, Event event) {
-        int countForMR = 100;
-        Boolean fromBottom = true;
+        
         morphia.map(Event.class);
         //col.save(morphia.toDBObject(event), WriteConcern.SAFE);
         Datastore ds = morphia.createDatastore(col.getDB().getMongo(), col.getDB().toString());
@@ -58,7 +66,7 @@ public class PreaggregateMongoMRI implements Preaggregate {
                 .get();
         DBObject counter = col.getDB().getCollection("counter")
                 .findAndModify(query, null, new BasicDBObject("_id", -1), false, update, true, true);
-        
+
         if (((Integer) counter.get("count")) % countForMR == 0) {
             //col.getDB().getCollection("counter").remove(new BasicDBObject("count", 10), WriteConcern.NORMAL);
             for (int i = 0; i < times.length; i++) {
@@ -67,7 +75,7 @@ public class PreaggregateMongoMRI implements Preaggregate {
                     before = times[i - 1][0];
                 }
                 int actual = times[i][0];
-                int next = times[i][1];
+                int next = times[i][1] * times[i][0];
                 int rangeLeft = 0;
                 if (times[i].length > 2) {
                     rangeLeft = times[i][2];
@@ -80,32 +88,34 @@ public class PreaggregateMongoMRI implements Preaggregate {
                 String map = "preaggregate_map_inc(this)";
                 String reduce = "function(id, values){ return preaggregate_reduce_inc(id, values);}";
 
-                for (int k = -rangeLeft; k <= rangeRight; k++) {
-                    BasicDBObjectBuilder queryLocal = new BasicDBObjectBuilder();
-                    queryLocal.push("_id")
-                            .append(Field.GTE, counter.get("from"))
-                            .append(Field.LT, counter.get("to"));
 
-                    String range = "";
-                    if (rangeLeft != 0 || rangeRight != 0) {
-                        range = ".l" + rangeLeft + ".r" + rangeRight;
-                    }
-                    String outputCol = colName + actual + range;
+                BasicDBObjectBuilder queryLocal = new BasicDBObjectBuilder();
+                queryLocal.push("_id")
+                        .append(Field.GTE, counter.get("from"))
+                        .append(Field.LTE, counter.get("to"));
 
-                    MapReduceCommand mapReduceCmd =
-                            new MapReduceCommand(col, map, reduce, outputCol,
-                            MapReduceCommand.OutputType.REDUCE, queryLocal.get());
-
-                    Map<String, Object> globalVariables = new HashMap<String, Object>();
-                    globalVariables.put("actualMillis", unit.toMillis(actual));
-                    globalVariables.put("nextMillis", unit.toMillis(next));
-                    mapReduceCmd.setScope(globalVariables);
-                    mapReduceCmd.setSort(new BasicDBObject("_id", -1));
-                    mapReduceCmd.setLimit(countForMR);
-
-                    MapReduceOutput out = col.mapReduce(mapReduceCmd);
-                    int x = 2 + 1;
+                String range = "";
+                if (rangeLeft != 0 || rangeRight != 0) {
+                    range = ".l" + rangeLeft + ".r" + rangeRight;
                 }
+                String outputCol = colName + actual + range;
+
+                MapReduceCommand mapReduceCmd =
+                        new MapReduceCommand(col, map, reduce, outputCol,
+                        MapReduceCommand.OutputType.REDUCE, queryLocal.get());
+
+                Map<String, Object> globalVariables = new HashMap<String, Object>();
+                globalVariables.put("actualMillis", unit.toMillis(actual));
+                globalVariables.put("nextMillis", unit.toMillis(next));
+                globalVariables.put("rangeLeft", rangeLeft);
+                globalVariables.put("rangeRight", rangeRight);
+                mapReduceCmd.setScope(globalVariables);
+                mapReduceCmd.setSort(new BasicDBObject("_id", -1));
+                mapReduceCmd.setLimit(countForMR);
+
+                MapReduceOutput out = col.mapReduce(mapReduceCmd);
+                int x = 2 + 1;
+
             }
         }
     }

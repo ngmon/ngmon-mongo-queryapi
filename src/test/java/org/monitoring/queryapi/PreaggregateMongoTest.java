@@ -50,7 +50,7 @@ public class PreaggregateMongoTest {
         Preaggregate preaggregate = new PreaggregateMongo(col);
         Date start = new Date();
         for(Event event : list){
-            int[][] times = {{60, 1440,0,0},{1440, 2880,0,0},{2880, 2880,0,0}};
+            int[][] times = {{60, 24,0,0},{1440, 2,0,0},{2880, 1,0,0}};
             preaggregate.saveEvent(TimeUnit.MINUTES, times, event);
         }
         Date end = new Date();

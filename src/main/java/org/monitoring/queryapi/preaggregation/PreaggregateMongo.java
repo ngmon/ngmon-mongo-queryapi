@@ -4,9 +4,11 @@ import org.monitoring.queryapi.preaggregation.compute.ComputeAvg;
 import org.monitoring.queryapi.preaggregation.compute.Compute;
 import com.google.code.morphia.Datastore;
 import com.google.code.morphia.Morphia;
+import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
+import com.mongodb.WriteResult;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.Event;
@@ -28,6 +30,7 @@ public class PreaggregateMongo implements Preaggregate {
         this.col = col;
         colName = col.getName();
         allocateObject = (DBObject) com.mongodb.util.JSON.parse(Manager.readFile("src/main/resources/js_allocate.js"));
+        col.createIndex(new BasicDBObject("date", 1));
     }
 
     /**
@@ -60,6 +63,7 @@ public class PreaggregateMongo implements Preaggregate {
     @Override
     public void saveEvent(TimeUnit unit, int[][] times, Event event) {
         Long fieldTime;
+        WriteResult wr;
         int i = 0;
         Compute computer = new ComputeAvg();
 
@@ -69,25 +73,24 @@ public class PreaggregateMongo implements Preaggregate {
 
         while (i < times.length) {
             int timeActual = times[i][0];
-            int timeNext = times[i][1];
-            int rangeLeft = 0;
+            int timeNext = times[i][1] * times[i][0];
+            int range = 0;
             if (times[i].length > 2) {
-                rangeLeft = times[i][2];
+                range += times[i][2];
             }
-            int rangeRight = 0;
             if (times[i].length > 3) {
-                rangeRight = times[i][3];
+                range += times[i][3];
             }
             i++;
 
-            String range = "";
-            if (rangeLeft != 0 || rangeRight != 0) {
-                range = ".l" + rangeLeft + ".r" + rangeRight;
+            String colRange = "";
+            if (range != 0) {
+                colRange = ".r" + range;
             }
             DBCollection localCol = col.getDB()
-                    .getCollection(colName + timeActual + range);
+                    .getCollection(colName + timeActual + colRange);
 
-            for (int k = -rangeLeft; k <= rangeRight; k++) {
+            for (int k = 0; k <= range; k++) {
                 long difference = unit.toMillis(timeActual * k);
                 long eventDateLocal = event.getDate().getTime() + difference;
 
@@ -103,68 +106,72 @@ public class PreaggregateMongo implements Preaggregate {
                 DBObject project = BasicDBObjectBuilder.start()
                         .append("date", 1).append("_id", 1).append(aggField, 1)
                         .get();
-
-                DBObject aggregatedDoc = localCol.findOne(identificationOldDay, project);
-
-                /* reset initial PreaggregateCompute fields  */
-                Compute comp = computer;
-                try {
-                    comp = computer.getClass().newInstance();
-                } catch (InstantiationException ex) {
-                } catch (IllegalAccessException ex) {
-                }
-
-                java.lang.reflect.Field[] fields = comp.getClass().getFields();
-
-                /* allocate empty agregation document */
-                if (aggregatedDoc == null) {
-                    BasicDBObjectBuilder builder = new BasicDBObjectBuilder();
-                    for (java.lang.reflect.Field field : fields) {
-                        try {
-                            builder.append(field.getName(), field.get(comp));
-                        } catch (IllegalArgumentException ex) {
-                        } catch (IllegalAccessException ex) {
-                        }
-                    }
-                    DBObject allocationPoint = builder.get();
-                    builder = BasicDBObjectBuilder.start().push("$set");
-                    for (Integer j = 0; j < timeNext / timeActual; j++) {
-                        builder.append(aggField + "." + j.toString(), allocationPoint);
-                    }
-                    DBObject allocate = builder.get();
-                    localCol.update(identificationOldDay, allocate, true, false);
-                } else {
-                    /* read fields from db and insert them into PreaggregateCompute instance */
-                    for (java.lang.reflect.Field field : fields) {
-                        try {
-                            comp.getClass().getField(field.getName())
-                                    .set(comp, ((DBObject) ((DBObject) aggregatedDoc.get(aggField)).get(fieldTimeString))
-                                    .get(field.getName()));
-                        } catch (IllegalArgumentException ex) {
-                        } catch (IllegalAccessException ex) {
-                        } catch (NoSuchFieldException ex) {
-                        } catch (SecurityException ex) {
-                        }
-                    }
-                }
-
-                /* recompute aggregations */
-                comp.recompute(event);
-
-                /* create updating aggregation document */
-                BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
-                updateBuilder.push("$set");
-                for (java.lang.reflect.Field field : fields) {
+                do {
+                    DBObject aggregatedDoc = localCol.findOne(identificationOldDay, project);
+                    
+                    /* reset initial PreaggregateCompute fields  */
+                    Compute comp = computer;
                     try {
-                        updateBuilder.append(aggField + "." + fieldTimeString + "." + field.getName(), field.get(comp));
-                    } catch (IllegalArgumentException ex) {
+                        comp = computer.getClass().newInstance();
+                    } catch (InstantiationException ex) {
                     } catch (IllegalAccessException ex) {
                     }
-                }
 
-                DBObject update = updateBuilder.get();
+                    java.lang.reflect.Field[] fields = comp.getClass().getFields();
 
-                localCol.update(identificationOldDay, update, true, false);
+                    /* allocate empty agregation document */
+                    if (aggregatedDoc == null) {
+                        BasicDBObjectBuilder builder = new BasicDBObjectBuilder();
+                        for (java.lang.reflect.Field field : fields) {
+                            try {
+                                builder.append(field.getName(), field.get(comp));
+                            } catch (IllegalArgumentException ex) {
+                            } catch (IllegalAccessException ex) {
+                            }
+                        }
+                        DBObject allocationPoint = builder.get();
+                        builder = BasicDBObjectBuilder.start().push("$set");
+                        for (Integer j = 0; j < timeNext / timeActual; j++) {
+                            builder.append(aggField + "." + j.toString(), allocationPoint);
+                        }
+                        DBObject allocate = builder.get();
+                        localCol.update(identificationOldDay, allocate, true, false);
+                    } else {
+                        /* read fields from db and insert them into PreaggregateCompute instance */
+                        for (java.lang.reflect.Field field : fields) {
+                            try {
+                                comp.getClass().getField(field.getName())
+                                        .set(comp, ((DBObject) ((DBObject) aggregatedDoc.get(aggField)).get(fieldTimeString))
+                                        .get(field.getName()));
+                            } catch (IllegalArgumentException ex) {
+                            } catch (IllegalAccessException ex) {
+                            } catch (NoSuchFieldException ex) {
+                            } catch (SecurityException ex) {
+                            }
+                        }
+                    }
+
+                    /* recompute aggregations */
+                    comp.recompute(event);
+
+                    /* create updating aggregation document */
+                    BasicDBObjectBuilder updateBuilder = new BasicDBObjectBuilder();
+                    updateBuilder.push("$set");
+                    for (java.lang.reflect.Field field : fields) {
+                        try {
+                            updateBuilder.append(aggField + "." + fieldTimeString + "." + field.getName(), field.get(comp));
+                        } catch (IllegalArgumentException ex) {
+                        } catch (IllegalAccessException ex) {
+                        }
+                    }
+
+                    DBObject update = updateBuilder.get();
+                    if (aggregatedDoc == null) {
+                        aggregatedDoc = identificationOldDay;
+                    }
+
+                    wr = localCol.update(aggregatedDoc, update, true, false);
+                } while (wr.getN() == 0); //succesful concurrent write
             }
         }
     }

@@ -14,6 +14,7 @@ import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
  */
 public class SaveThread extends Thread {
 
+    static Manager m = new Manager();
     Event e;
     DBCollection col;
     List<Event> list = new ArrayList<Event>();

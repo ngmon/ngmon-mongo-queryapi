@@ -8,12 +8,12 @@ public class CacheMatcher {
     private String operation;
     private String field;
     private String match;
-    private int groupTime;
+    private long groupTime;
     
     public CacheMatcher(){        
     }
 
-    public CacheMatcher(String operation, String field, String match, int groupTime) {
+    public CacheMatcher(String operation, String field, String match, long groupTime) {
         this.operation = operation;
         this.field = field;
         this.match = match;
@@ -51,7 +51,7 @@ public class CacheMatcher {
         this.match = match;
     }
 
-    public int getGroupTime() {
+    public long getGroupTime() {
         return groupTime;
     }
 

@@ -33,7 +33,7 @@ public class PreaggregateMongoMRTest {
     public static void setUp() throws InterruptedException {
         col = m.getDb().getCollection("aggregate"); 
         m.getDb().dropDatabase();
-        col.createIndex(new BasicDBObject("date", 1));
+        m.executeJSSaveFromDefaultFile();
         Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
         for (int i = 0; i < 192; i++) {
@@ -50,7 +50,7 @@ public class PreaggregateMongoMRTest {
     public void saveEvent() {
         Preaggregate preaggregate = new PreaggregateMongoMR(col);
         TimeUnit unit = TimeUnit.MINUTES;
-        int[][] times = {{1440, 10080}}; // dayily(in week)       
+        int[][] times = {{1440, 7,1,1}}; // dayily(in week)       
         Date start = new Date();
         for(Event event : list){
             preaggregate.saveEvent(unit, times, event);                        

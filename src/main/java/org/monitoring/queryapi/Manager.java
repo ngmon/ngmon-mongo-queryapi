@@ -4,7 +4,10 @@ import com.mongodb.CommandResult;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.Mongo;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoOptions;
+import com.mongodb.WriteConcern;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,6 +15,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.UnknownHostException;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import org.apache.log4j.Logger;
 import org.monitoring.queryapi.preaggregation.Preaggregate;
@@ -23,8 +29,9 @@ import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
  */
 public class Manager {
 
-    public static String CACHE;
-    public static String CACHE_FLAGS;
+    public static Mode MODE = Manager.Mode.AggregationFramework;
+    public static String CACHE = "cache";
+    public static String CACHE_FLAGS = "cache.flags";
     private Mongo m;
     private DB db;
     private DBCollection col;
@@ -33,13 +40,10 @@ public class Manager {
     private String dbName;
     private static org.apache.log4j.Logger log =
             Logger.getLogger(Manager.class);
-    
-    /* default collection names for cache */
-    private final String DEFAULT_CACHE = "cache";
-    private final String DEFAULT_CACHE_FLAGS = "cache.flags";
 
     /**
      * Manager connects on Mongo server
+     *
      * @param host address
      * @param port numeric port
      * @param dbName name of database
@@ -49,8 +53,7 @@ public class Manager {
         this.port = port;
         this.dbName = dbName;
         connect();
-        CACHE = DEFAULT_CACHE;
-        CACHE_FLAGS = DEFAULT_CACHE_FLAGS;
+        executeJSSaveFromDefaultFile();
     }
 
     /**
@@ -69,19 +72,21 @@ public class Manager {
      */
     private void connect() {
         try {
-            MongoOptions options = new MongoOptions();
-            options.connectTimeout = 100;
-            m = new Mongo(host + ":" + port, options);
+            MongoClientOptions options = MongoClientOptions.builder()
+                    .connectTimeout(1000)
+                    .writeConcern(WriteConcern.SAFE)
+                    .build();
+            m = new MongoClient(host + ":" + port, options);
             db = m.getDB(dbName);
             db.collectionExists("test");
         } catch (UnknownHostException ex) {
-             System.err.println("Connection failed: " + ex);
+            System.err.println("Connection failed: " + ex);
             throw new RuntimeException("Can not connect Mongo server");
         } catch (NullPointerException ex) {
-            
+
             throw new RuntimeException("Can not connect Mongo server");
         } catch (Exception ex) {
-            
+
             throw new RuntimeException("Can not connect Mongo server");
         }
     }
@@ -117,8 +122,12 @@ public class Manager {
         port = new Integer(props.getProperty("mongo.port", "27017"));
         dbName = props.getProperty("mongo.dbname", "test");
 
-        CACHE = props.getProperty("mongo.cache", DEFAULT_CACHE);
-        CACHE_FLAGS = props.getProperty("mongo.cache", DEFAULT_CACHE_FLAGS);
+        
+        MODE = Manager.Mode.get(
+                Character.getNumericValue(props.getProperty("mongo.mode").charAt(0))
+                );
+        CACHE = props.getProperty("mongo.cache.collection");
+        CACHE_FLAGS = props.getProperty("mongo.cache.collection.flags");
     }
 
     /**
@@ -132,33 +141,33 @@ public class Manager {
         setCollection(collectionName);
         return new Query(col);
     }
-    
+
     /**
-     * Create query instance used for constructing complex db queries that will be executed on default collection
+     * Create query instance used for constructing complex db queries that will be executed on
+     * default collection
      *
      * @param col collection in db
      * @return new query with collection set
      */
-    public Query createQuery(){
-        if(col == null){
+    public Query createQuery() {
+        if (col == null) {
             throw new NullPointerException("Collection was not set");
         }
         return new Query(col);
     }
-    
+
     /**
-     * Create preaggregation instance used for saving events into 
-     * specified collection and actualizing statistics via
-     * incremental map reduce (as it is prefered)
+     * Create preaggregation instance used for saving events into specified collection and
+     * actualizing statistics via incremental map reduce (as it is prefered)
      *
      * @param col collection into event are saved
      * @return preaggregation instance with collection set
      */
-    public Preaggregate createPreaggregate(String collectionName){
+    public Preaggregate createPreaggregate(String collectionName) {
         setCollection(collectionName);
         return new PreaggregateMongoMRI(col);
     }
-    
+
     /**
      * Return Mongo DB instance
      */
@@ -172,9 +181,15 @@ public class Manager {
     public DBCollection getCollection() {
         return col;
     }
-    
-    public Manager setCollection(String collectionName){
-        col = db.getCollection(collectionName);        
+
+    public Manager setCollection(String collectionName) {
+        col = db.getCollection(collectionName);
+        return this;
+    }
+
+    public Manager dropCollection(String collectionName) {
+        col = db.getCollection(collectionName);
+        col.drop();
         return this;
     }
 
@@ -185,12 +200,12 @@ public class Manager {
         String cmd = readFile(path);
         executeJS(cmd);
     }
-    
-    private void executeJSSaveFromDefaultFile() {
+
+    public void executeJSSaveFromDefaultFile() {
         String cmd = readFile("src/main/resources/js_command.js");
         executeJS("db.system.js.save(" + cmd + ");");
     }
-    
+
     public static String readFile(String path) {
         StringBuilder sb = new StringBuilder();
         InputStream is = null;
@@ -216,14 +231,45 @@ public class Manager {
         }
         return sb.toString();
     }
-    
-    
+
     /**
      * Execute JS function on serverside of Mongo
+     *
      * @param cmd only one JS command (function)
      */
-    public void executeJS(String cmd){
+    public void executeJS(String cmd) {
         CommandResult r = db.doEval(cmd);
     }
+
+    public void setMode(Mode mode){
+        MODE = mode;
+    }
     
+    public enum Mode {
+
+        AggregationFramework(1),
+        MapReduce(2),
+        MapReduceCached(3);
+        int mode;
+        
+        private static final Map<Integer, Mode> lookup = new HashMap<Integer, Mode>();
+        static {
+            for (Mode s : EnumSet.allOf(Mode.class)) {
+                lookup.put(s.getCode(), s);
+            }
+        }
+
+        private Mode(int num) {
+            this.mode = num;
+        }
+
+        public int getCode() {
+            return mode;
+        }
+        
+        public static Mode get(int code){
+            return lookup.get(code);
+        }
+        
+    };
 }

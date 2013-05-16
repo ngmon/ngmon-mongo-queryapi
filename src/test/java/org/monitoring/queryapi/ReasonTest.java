@@ -41,7 +41,7 @@ public class ReasonTest {
             docData.setValue(i);
             docData.setSource(i % 20);
             docData.setPart(1 + i % 4);
-            doc.setTime(cal.getTime());
+            doc.setDate(cal.getTime());
             doc.setData(docData);
             ds.save(doc);
             list.add(doc);

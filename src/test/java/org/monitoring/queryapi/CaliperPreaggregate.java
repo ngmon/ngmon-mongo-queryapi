@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import org.monitoring.queryapi.preaggregation.Preaggregate;
 import org.monitoring.queryapi.preaggregation.PreaggregateMongo;
 import org.monitoring.queryapi.preaggregation.PreaggregateMongoMR;
+import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
 import org.monitoring.queryapi.preaggregation.compute.Compute;
 import org.monitoring.queryapi.preaggregation.compute.ComputeAvg;
 
@@ -31,15 +32,18 @@ public class CaliperPreaggregate extends SimpleBenchmark {
     int from, to;
     Compute computer = new ComputeAvg();
     TimeUnit unit = TimeUnit.MINUTES;
-    int[][] times = {{60, 1440}, {1440, 43200, 3, 3}, {1440, 43200}, {43200, 525600}};
+    int[][] times = {{60, 24}, {1440, 43200, 3, 3},{1440, 30}, {43200, 12} };
     Preaggregate preaggregate = new PreaggregateMongo(col);
     Preaggregate preaggregateMR = new PreaggregateMongoMR(col);
+    Preaggregate preaggregateMRI = new PreaggregateMongoMRI(col);
 
     @Override
     protected void setUp() {
         col = m.getDb().getCollection("aggregate");
         m.getDb().dropDatabase();
+        m.getDb().createCollection("aggregate", new BasicDBObject("size", 1024*1024*10));
         col.createIndex(new BasicDBObject("date", 1));
+        m.executeJSSaveFromDefaultFile();
         Calendar cal = new GregorianCalendar(2013, 1, 1, 1, 0, 0);
         cal.set(Calendar.MILLISECOND, 0);
         from = 0;
@@ -64,9 +68,9 @@ public class CaliperPreaggregate extends SimpleBenchmark {
         }
     }
 
-    public void timeMapReduceAggregate(int reps) {
+    public void timeMapReduceIncAggregate(int reps) {
         for (int i = 0; i < reps; i++) {
-            preaggregateMR.saveEvent(unit, times, list.get(i));
+            preaggregateMRI.saveEvent(unit, times, list.get(i));
         }
     }
 

@@ -3,6 +3,7 @@ package org.monitoring.queryapi;
 import com.google.code.morphia.annotations.Embedded;
 import com.google.code.morphia.annotations.Entity;
 import com.google.code.morphia.annotations.Id;
+import com.google.code.morphia.annotations.Property;
 import java.util.Date;
 import org.bson.types.ObjectId;
 
@@ -15,7 +16,7 @@ public class Document {
 
     @Id
     private ObjectId id;
-    private Date time;
+    private Date date;
     @Embedded
     private DocumentData data;
 
@@ -27,12 +28,12 @@ public class Document {
         this.id = id;
     }
 
-    public Date getTime() {
-        return time;
+    public Date getDate() {
+        return date;
     }
 
-    public void setTime(Date time) {
-        this.time = time;
+    public void setDate(Date date) {
+        this.date = date;
     }
 
     public DocumentData getData() {

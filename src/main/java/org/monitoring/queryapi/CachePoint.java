@@ -31,7 +31,7 @@ public class CachePoint extends CacheMatcher {
         super();
     };
     
-    public CachePoint(Date date, String operation, String field, String match, CachePoint.Flag flag, int groupTime) {
+    public CachePoint(Date date, String operation, String field, String match, CachePoint.Flag flag, long groupTime) {
         super(operation, field, match, groupTime);
         this.date = date;
         this.flag = flag;

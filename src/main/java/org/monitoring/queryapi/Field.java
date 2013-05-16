@@ -1,6 +1,7 @@
 package org.monitoring.queryapi;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
 
 /**
  *
@@ -60,8 +61,7 @@ public class Field {
     public Query greaterThanOrEq(Object value){
         query.append(field, new BasicDBObject(GTE, value));
         return query;
-    }
-    
+    }    
     
     public Query hasOneOf(Iterable<?> value){
         query.append(field, new BasicDBObject("$in", value));
@@ -81,11 +81,29 @@ public class Field {
     public Query hasThisOne(Object value){
         return equal(value);
     }
-    
-    
+        
     public Query hasThisElement(Object value){
         query.append(field, new BasicDBObject("$elemMatch", value));
         return query;
     }
-
+    
+    public DBObject sum(){
+        return query.sum(field);
+    }
+    
+    public DBObject avg(){
+        return query.avg(field);
+    }
+    
+    public DBObject min(){
+        return query.min(field);
+    }
+    
+    public DBObject max(){
+        return query.max(field);
+    }
+    
+    public DBObject median(){
+        return query.median(field);
+    }
 }

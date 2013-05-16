@@ -13,8 +13,10 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.monitoring.queryapi.Manager.Mode;
 
 /**
  * Class for composing complex queries.
@@ -27,17 +29,23 @@ public class Query {
     private BasicDBObjectBuilder query = new BasicDBObjectBuilder();
     private BasicDBObjectBuilder sort = new BasicDBObjectBuilder();
     private int limit = 0;
-    private Date start = null, end = null;
-    private int step = 1000;
+    private long step = 1000;
+    private Date start = null;
+    private Date end = null;
     private CachePointMapper dbmapper = new CachePointMapper();
     public static final String ID_DATA = "data";
     public static final String ID_TIME = "time";
     public static final String ID_FLAG = CachePointMapper.CACHE_FLAG;
     private final String CACHE = Manager.CACHE;
     private final String CACHE_FLAGS = Manager.CACHE_FLAGS;
+    private Mode mode = Manager.MODE;
 
     public Query(DBCollection col) {
         this.col = col;
+    }
+    
+    public DBCollection getCollection(){
+        return col;
     }
 
     /**
@@ -58,7 +66,7 @@ public class Query {
      * @return Field
      */
     public Field field(String field) {
-        return new Field((Query) this, ID_DATA + "." + field);
+        return new Field((Query) this, field);
     }
 
     /**
@@ -71,6 +79,10 @@ public class Query {
         sort.append(field, 1);
         return this;
     }
+    
+    public Query orderDateAsc() {
+        return orderAsc("_id");
+    }
 
     /**
      * Sort documents on output by field descending
@@ -82,6 +94,14 @@ public class Query {
         sort.append(field, -1);
         return this;
     }
+    
+    public Query orderDateDesc() {
+        return orderDesc("_id");
+    }
+    
+    public DBObject getOrder(){
+        return sort.get();
+    }
 
     /**
      * Restricts the number of output documents
@@ -90,8 +110,19 @@ public class Query {
      * @return Query for chaining
      */
     public Query limit(int num) {
+        if(limit < 0){
+            throw new RuntimeException("Limit in Query have to be positive, is :" + limit);
+        }
         limit = num;
         return this;
+    }
+    
+    public int getLimit(){
+        return limit;
+    }
+    
+    public void setMode(Mode mode){
+        this.mode = mode;
     }
 
     /**
@@ -99,16 +130,16 @@ public class Query {
      *
      * @return
      */
-    private DBObject getMatchQuery() {
+    public DBObject getMatchQuery() {
         BasicDBObjectBuilder queryLocal = new BasicDBObjectBuilder();
         if (start != null) {
             queryLocal.push(ID_TIME).append(Field.GTE, start);
         }
         if (end != null) {
             if (queryLocal.isEmpty()) {
-                queryLocal.push(ID_TIME).append(Field.LTE, end);
+                queryLocal.push(ID_TIME).append(Field.LT, end);
             } else {
-                queryLocal.append(Field.LTE, end);
+                queryLocal.append(Field.LT, end);
             }
         }
         DBObject out = query.get();
@@ -151,6 +182,10 @@ public class Query {
         start = date;
         return this;
     }
+    
+    public Date getFromDate(){
+        return start;
+    }
 
     /**
      * Set matching ending date (right time boundary)
@@ -162,6 +197,10 @@ public class Query {
         end = date;
         return this;
     }
+    
+    public Date getToDate(){
+        return end;
+    }
 
     /**
      * Set length of grouping time interval
@@ -169,9 +208,16 @@ public class Query {
      * @param step length of interval in milliseconds
      * @return Query for chaining
      */
-    public Query setStep(int step) {
+    public Query setStep(long step) {
+        if(step < 0){
+            throw new RuntimeException("Step in Query have to be positive, is :" + step);
+        }
         this.step = step;
         return this;
+    }
+    
+    public long getStep(){
+        return step;
     }
 
     /**
@@ -190,7 +236,7 @@ public class Query {
      * @return Query for chaining
      */
     public DBObject distinct(String field) {
-        return wrap("result", col.distinct(ID_DATA + "." + field, getMatchQuery()));
+        return wrap("result", col.distinct(field, getMatchQuery()));
     }
 
     /**
@@ -206,30 +252,119 @@ public class Query {
      * Get number of documents in interval specified by step taking into account match, date
      * boundaries and limit
      *
-     * @return DBObject with time and counts in array on key result
+     * @return DBObject with times and counts in array on key result
      */
     public DBObject count() {
-        String map = "count_map(this)";
-        String reduce = "function(id,values){ return count_reduce(id, values);}";
-        Map<String, Object> scope = getScope(step);
-        return wrap("result", mapReduce(map, reduce, scope));
+        if (mode == Manager.Mode.MapReduceCached) {
+            String map = "count_map_cached(this)";
+            String reduce = "function(id,values){ return count_reduce(id, values);}";
+            String finalize = "";
+            /* create cache identifier */
+            String field = ""; //count does not use any field
+            CacheMatcher cm = new CacheMatcher("count", field, query.get().toString(), step);
+            /* bind global variables for map-reduce on serve-side */
+            Map<String, Object> scope = getScope(field, step, cm.getMD5());
+            return cache(cm, map, reduce, finalize, scope);
+        } else if (mode == Manager.Mode.MapReduce) {
+            String map = "count_map(this)";
+            String reduce = "function(id,values){ return count_reduce(id, values);}";
+            Map<String, Object> scope = getScope(step);
+            return wrap("result", mapReduce(map, reduce, scope));
+        } else {
+            DBObject matchOp = new BasicDBObject(Aggregation.MATCH, getMatchQuery());
+            DBObject groupOp = groupingObjectForAF(new BasicDBObject(Aggregation.SUM, 1));
+            List<DBObject> pipe = new LinkedList<DBObject>();
+            pipe.add(groupOp);
+            if (!sort.isEmpty()) {
+                DBObject sortOp = new BasicDBObject(Aggregation.SORT, new BasicDBObject("_id",1));
+                pipe.add(sortOp);
+            }
+            if (limit != 0) {
+                DBObject limitOp = new BasicDBObject(Aggregation.LIMIT, limit);
+                pipe.add(limitOp);
+            }
+            return wrap("result", col.aggregate(matchOp, pipe.toArray(new DBObject[0])).results());
+        }
+    }
+
+    private DBObject groupingObjectForAF(DBObject appliedAggregationFunction) {
+        BasicDBList add = new BasicDBList();
+        BasicDBList multiply = new BasicDBList();
+        multiply.add(31536000000L);
+        multiply.add(new BasicDBObject("$year", "$date"));
+        add.add(new BasicDBObject("$multiply", multiply));
+        multiply = new BasicDBList();
+        multiply.add(86400000);
+        multiply.add(new BasicDBObject("$dayOfYear", "$date"));
+        add.add(new BasicDBObject("$multiply", multiply));
+        multiply = new BasicDBList();
+        multiply.add(3600000);
+        multiply.add(new BasicDBObject("$hour", "$date"));
+        add.add(new BasicDBObject("$multiply", multiply));
+        multiply = new BasicDBList();
+        multiply.add(60000);
+        multiply.add(new BasicDBObject("$minute", "$date"));
+        add.add(new BasicDBObject("$multiply", multiply));
+        multiply = new BasicDBList();
+        multiply.add(1000);
+        multiply.add(new BasicDBObject("$second", "$date"));
+        add.add(new BasicDBObject("$multiply", multiply));
+        add.add(new BasicDBObject("$millisecond", "$date"));
+        BasicDBList mod = new BasicDBList();
+        mod.add(new BasicDBObject("$add", add));
+        mod.add(step);
+        BasicDBList subtract = new BasicDBList();
+        subtract.add("$date");
+        subtract.add(new BasicDBObject("$mod", mod));
+        DBObject group = BasicDBObjectBuilder.start()
+                .push("$group")
+                .push("_id")
+                .add("$subtract", subtract)
+                .pop()
+                .add("value", appliedAggregationFunction)
+                .get();
+        return group;
     }
 
     /**
-     * Compute average from values on specified field in interval specified by step taking into account
-     * match, date boundaries and limit
+     * Compute average from values on specified field in interval specified by step taking into
+     * account match, date boundaries and limit
      *
      * @param field
      * @return DBObject with times and avgs in array on key result
      */
     public DBObject avg(String field) {
-        String map = "map(this)";
-        String reduce = "function(id, values){ return avg_reduce(id, values);}";
-        Map<String, Object> scope = getScope(field, step);
-        return wrap("result", mapReduce(map, reduce, scope));
+        if (mode == Manager.Mode.MapReduceCached) {
+            /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
+            String map = "map_cached(this)";
+            String reduce = "function(id,values){ return avg_reduce(id, values);}";
+            String finalize = "";
+            /* create cache identifier */
+            CacheMatcher cm = new CacheMatcher("avg", field, query.get().toString(), step);
+            /* bind global variables for map-reduce on serve-side */
+            Map<String, Object> scope = getScope(field, step, cm.getMD5());
+            return cache(cm, map, reduce, finalize, scope);
+        } else if (mode == Manager.Mode.MapReduce) {
+            String map = "map(this)";
+            String reduce = "function(id, values){ return avg_reduce(id, values);}";
+            Map<String, Object> scope = getScope(field, step);
+            return wrap("result", mapReduce(map, reduce, scope));
+        }else {
+            DBObject matchOp = new BasicDBObject(Aggregation.MATCH, getMatchQuery());
+            DBObject groupOp = groupingObjectForAF(new BasicDBObject(Aggregation.AVG, "$"+field));
+            List<DBObject> pipe = new LinkedList<DBObject>();
+            pipe.add(groupOp);
+            if (!sort.isEmpty()) {
+                DBObject sortOp = new BasicDBObject(Aggregation.SORT, new BasicDBObject("_id",1));
+                pipe.add(sortOp);
+            }
+            if (limit != 0) {
+                DBObject limitOp = new BasicDBObject(Aggregation.LIMIT, limit);
+                pipe.add(limitOp);
+            }
+            return wrap("result", col.aggregate(matchOp, pipe.toArray(new DBObject[0])).results());
+        }
     }
-    
-    
 
     /**
      * Compute sum of values on specified field in interval specified by step taking into account
@@ -239,38 +374,105 @@ public class Query {
      * @return DBObject with times and sums in array on key result
      */
     public DBObject sum(String field) {
-        String map = "map(this)";
-        String reduce = "function(id,values){ return sum_reduce(id,values);}";
-        Map<String, Object> scope = getScope(field, step);
-        return wrap("result", mapReduce(map, reduce, scope));
+        if (mode == Manager.Mode.MapReduceCached) {
+            /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
+            String map = "map_cached(this)";
+            String reduce = "function(id,values){ return sum_reduce(id, values);}";
+            String finalize = "";
+            /* create cache identifier */
+            CacheMatcher cm = new CacheMatcher("sum", field, query.get().toString(), step);
+            /* bind global variables for map-reduce on serve-side */
+            Map<String, Object> scope = getScope(field, step, cm.getMD5());
+            return cache(cm, map, reduce, finalize, scope);
+        } else if (mode == Manager.Mode.MapReduce) {
+            String map = "map(this)";
+            String reduce = "function(id,values){ return sum_reduce(id,values);}";
+            Map<String, Object> scope = getScope(field, step);
+            return wrap("result", mapReduce(map, reduce, scope));
+        }else {
+            DBObject matchOp = new BasicDBObject(Aggregation.MATCH, getMatchQuery());
+            DBObject groupOp = groupingObjectForAF(new BasicDBObject(Aggregation.SUM, "$"+field));
+            List<DBObject> pipe = new LinkedList<DBObject>();
+            pipe.add(groupOp);
+            if (!sort.isEmpty()) {
+                DBObject sortOp = new BasicDBObject(Aggregation.SORT,  new BasicDBObject("_id",1));
+                pipe.add(sortOp);
+            }
+            if (limit != 0) {
+                DBObject limitOp = new BasicDBObject(Aggregation.LIMIT, limit);
+                pipe.add(limitOp);
+            }
+            return wrap("result", col.aggregate(matchOp, pipe.toArray(new DBObject[0])).results());
+        }
     }
 
     /**
-     * Find minimal value from values of specified field in interval specified by step taking into account
-     * match, date boundaries and limit
+     * Find minimal value from values of specified field in interval specified by step taking into
+     * account match, date boundaries and limit
      *
      * @param field
      * @return DBObject with times and mins in array on key result
      */
     public DBObject min(String field) {
-        String map = "map(this)";
-        String reduce = "function(id,values){ return min_reduce(id, values);}";
-        Map<String, Object> scope = getScope(field, step);
-        return wrap("result", mapReduce(map, reduce, scope));
+        if (mode == Manager.Mode.MapReduceCached) {
+            /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
+            String map = "map_cached(this)";
+            String reduce = "function(id,values){ return min_reduce(id, values);}";
+            String finalize = "";
+            /* create cache identifier */
+            CacheMatcher cm = new CacheMatcher("min", field, query.get().toString(), step);
+            /* bind global variables for map-reduce on serve-side */
+            Map<String, Object> scope = getScope(field, step, cm.getMD5());
+            return cache(cm, map, reduce, finalize, scope);
+        } else if (mode == Manager.Mode.MapReduce) {
+            String map = "map(this)";
+            String reduce = "function(id,values){ return min_reduce(id, values);}";
+            Map<String, Object> scope = getScope(field, step);
+            return wrap("result", mapReduce(map, reduce, scope));
+        }else {
+            DBObject matchOp = new BasicDBObject(Aggregation.MATCH, getMatchQuery());
+            DBObject groupOp = groupingObjectForAF(new BasicDBObject(Aggregation.MIN, "$"+field));
+            List<DBObject> pipe = new LinkedList<DBObject>();
+            pipe.add(groupOp);
+            if (!sort.isEmpty()) {
+                DBObject sortOp = new BasicDBObject(Aggregation.SORT,  new BasicDBObject("_id",1));
+                pipe.add(sortOp);
+            }
+            if (limit != 0) {
+                DBObject limitOp = new BasicDBObject(Aggregation.LIMIT, limit);
+                pipe.add(limitOp);
+            }
+            return wrap("result", col.aggregate(matchOp, pipe.toArray(new DBObject[0])).results());
+        }
     }
 
     /**
-     * Find maximal value from values on specified field in interval specified by step taking into account
-     * match, date boundaries and limit
+     * Find maximal value from values on specified field in interval specified by step taking into
+     * account match, date boundaries and limit
      *
      * @param field
      * @return DBObject with times and maxs in array on key result
      */
     public DBObject max(String field) {
-        String map = "map(this)";
-        String reduce = "function(id,values){ return max_reduce(id, values);}";
-        Map<String, Object> scope = getScope(field, step);
-        return wrap("result", mapReduce(map, reduce, scope));
+        if (mode == Manager.Mode.MapReduceCached) {
+            /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
+            String map = "map_cached(this)";
+            String reduce = "function(id,values){ return max_reduce(id, values);}";
+            String finalize = "";
+            /* create cache identifier */
+            CacheMatcher cm = new CacheMatcher("max", field, query.get().toString(), step);
+            /* bind global variables for map-reduce on serve-side */
+            Map<String, Object> scope = getScope(field, step, cm.getMD5());
+            return cache(cm, map, reduce, finalize, scope);
+        } else if (mode == Manager.Mode.MapReduce) {
+            String map = "function(){ return map(this);}";
+            String reduce = "function(id,values){ return max_reduce(id, values);}";
+            Map<String, Object> scope = getScope(field, step);
+            return wrap("result", mapReduce(map, reduce, scope));
+        } else {
+            Statistics stat = new StatisticsAggregationFramework(this);
+            return stat.max(field);
+        }
     }
 
     /**
@@ -280,84 +482,25 @@ public class Query {
      * @param field
      * @return DBObject with times and medians in array on key result
      */
+    @Deprecated //UNABLE TO COMPUTE CORRECTLY
     public DBObject median(String field) {
-        String map = "map(this)";
-        String reduce = "function(id,values){ return median_reduce(id, values);}";
-        /* bind global variables for map-reduce on serve-side */
-        Map<String, Object> scope = getScope(field, step);
-        return wrap("result", mapReduce(map, reduce, scope));
-    }
-
-    public DBObject countCached() {
-        String map = "count_map_cached(this)";
-        String reduce = "function(id,values){ return count_reduce(id, values);}";
-        String finalize = "";
-        /* create cache identifier */
-        String field = ""; //count does not need field
-        CacheMatcher cm = new CacheMatcher("count", field, query.get().toString(), step);
-        /* bind global variables for map-reduce on serve-side */
-        Map<String, Object> scope = getScope(field, step, cm.getMD5());
-        return cache(cm, map, reduce, finalize, scope);
-    }
-
-    public DBObject avgCached(String field) {
-        /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
-        String map = "map_cached(this)";
-        String reduce = "function(id,values){ return avg_reduce(id, values);}";
-        String finalize = "";
-        /* create cache identifier */
-        CacheMatcher cm = new CacheMatcher("avg", field, query.get().toString(), step);
-        /* bind global variables for map-reduce on serve-side */
-        Map<String, Object> scope = getScope(field, step, cm.getMD5());
-        return cache(cm, map, reduce, finalize, scope);
-    }
-
-    public DBObject sumCached(String field) {
-        /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
-        String map = "map_cached(this)";
-        String reduce = "function(id,values){ return sum_reduce(id, values);}";
-        String finalize = "";
-        /* create cache identifier */
-        CacheMatcher cm = new CacheMatcher("sum", field, query.get().toString(), step);
-        /* bind global variables for map-reduce on serve-side */
-        Map<String, Object> scope = getScope(field, step, cm.getMD5());
-        return cache(cm, map, reduce, finalize, scope);
-    }
-
-    public DBObject minCached(String field) {
-        /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
-        String map = "map_cached(this)";
-        String reduce = "function(id,values){ return min_reduce(id, values);}";
-        String finalize = "";
-        /* create cache identifier */
-        CacheMatcher cm = new CacheMatcher("min", field, query.get().toString(), step);
-        /* bind global variables for map-reduce on serve-side */
-        Map<String, Object> scope = getScope(field, step, cm.getMD5());
-        return cache(cm, map, reduce, finalize, scope);
-    }
-
-    public DBObject maxCached(String field) {
-        /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
-        String map = "map_cached(this)";
-        String reduce = "function(id,values){ return max_reduce(id, values);}";
-        String finalize = "";
-        /* create cache identifier */
-        CacheMatcher cm = new CacheMatcher("max", field, query.get().toString(), step);
-        /* bind global variables for map-reduce on serve-side */
-        Map<String, Object> scope = getScope(field, step, cm.getMD5());
-        return cache(cm, map, reduce, finalize, scope);
-    }
-
-    public DBObject medianCached(String field) {
-        /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
-        String map = "map_cached(this)";
-        String reduce = "function(id,values){ return median_reduce(id, values);}";
-        String finalize = "";
-        /* create cache identifier */
-        CacheMatcher cm = new CacheMatcher("median", field, query.get().toString(), step);
-        /* bind global variables for map-reduce on serve-side */
-        Map<String, Object> scope = getScope(field, step, cm.getMD5());
-        return cache(cm, map, reduce, finalize, scope);
+        if (mode == Manager.Mode.MapReduceCached) {
+            /* map, reduce, finalize JS functions (preferably stored in Mongo system.js) */
+            String map = "map_cached(this)";
+            String reduce = "function(id,values){ return median_reduce(id, values);}";
+            String finalize = "";
+            /* create cache identifier */
+            CacheMatcher cm = new CacheMatcher("median", field, query.get().toString(), step);
+            /* bind global variables for map-reduce on serve-side */
+            Map<String, Object> scope = getScope(field, step, cm.getMD5());
+            return cache(cm, map, reduce, finalize, scope);
+        } else {
+            String map = "map(this)";
+            String reduce = "function(id,values){ return median_reduce(id, values);}";
+            /* bind global variables for map-reduce on serve-side */
+            Map<String, Object> scope = getScope(field, step);
+            return wrap("result", mapReduce(map, reduce, scope));
+        }
     }
 
     /**
@@ -389,10 +532,12 @@ public class Query {
         }
         if (num > 0) {
             DBObject match = BasicDBObjectBuilder.start()
-                    .append(Aggregation.MATCH, new BasicDBObject(Aggregation.OR, dates)).get();
+                    .append(Aggregation.MATCH, new BasicDBObject(Aggregation.OR, dates))
+                    .get();
 
             for (String groupKey : groupBy) {
-                builder.append(groupKey.substring(groupKey.lastIndexOf(".")+1, groupKey.length()), "$" + groupKey);
+                builder.append(groupKey.substring(
+                        groupKey.lastIndexOf(".") + 1, groupKey.length()), "$" + groupKey);
             }
 
             DBObject groupInner = builder.get();
@@ -420,7 +565,7 @@ public class Query {
     }
 
     /**
-     * Perform Map Reduce command taking into account order and limit
+     * Perform Map Reduce command taking into account order and limit beside parameters
      *
      * @param map map JS function
      * @param reduce reduce JS function
@@ -433,7 +578,7 @@ public class Query {
      * @param qEnd
      */
     private Iterable<DBObject> mapReduce(String map, String reduce, String finalize, String output,
-            MapReduceCommand.OutputType type, Map<String, Object> scope, Date qStart, Date qEnd) {
+            MapReduceCommand.OutputType type, Map<String, Object> scope, Date qStart, Date qEnd, int limit) {
 
         MapReduceCommand mapReduceCmd;
 
@@ -470,60 +615,48 @@ public class Query {
         return out.results();
     }
 
-    private Iterable<DBObject> mapReduce(String map, String reduce, String finalize, String output, MapReduceCommand.OutputType type, Map<String, Object> scope) {
-        return mapReduce(map, reduce, finalize, output, type, scope, null, null);
-    }
-
-    private Iterable<DBObject> mapReduce(String map, String reduce, String finalize, String output, MapReduceCommand.OutputType type, Date qStart, Date qEend) {
-        return mapReduce(map, reduce, finalize, output, type, null, qStart, qEend);
-    }
-
-    private Iterable<DBObject> mapReduce(String map, String reduce, String finalize) {
-        return mapReduce(map, reduce, finalize, "", MapReduceCommand.OutputType.INLINE, null);
-    }
-
-    private Iterable<DBObject> mapReduce(String map, String reduce) {
-        return mapReduce(map, reduce, "", "", MapReduceCommand.OutputType.INLINE, null);
+    private Iterable<DBObject> mapReduce(String map, String reduce, String finalize, String output, MapReduceCommand.OutputType type, Map<String, Object> scope, int limit) {
+        return mapReduce(map, reduce, finalize, output, type, scope, null, null, limit);
     }
 
     private Iterable<DBObject> mapReduce(String map, String reduce, Map<String, Object> scope) {
-        return mapReduce(map, reduce, "", "", MapReduceCommand.OutputType.INLINE, scope);
+        return mapReduce(map, reduce, "", "", MapReduceCommand.OutputType.INLINE, scope, limit);
     }
 
     /**
-     * Wrap 2 pairs into new DBObject
+     * Wrap 2 pairs of (String,object) into new DBObject
      */
     private DBObject wrap(String firstKey, Object firstValue, String secondKey, Object secondValue) {
         return BasicDBObjectBuilder.start().append(firstKey, firstValue).append(secondKey, secondValue).get();
     }
 
     /**
-     * Wrap pair into new DBObject
+     * Wrap pair (String,object) into new DBObject
      */
     private DBObject wrap(String firstKey, Object firstValue) {
         return new BasicDBObject(firstKey, firstValue);
     }
 
     /**
-     * Perform Map-Reduce with parameters and cache the result. Computed results are saved in
-     * special collection. In next cache call with same identifier and date boundaries
-     * (dateFrom(),dateTo()), result is returned from cache. In cache call with same identifier and
-     * date boundaries intersected with cache date boundaries, only in not computed date intervals
-     * is map reduce performed. At the end it returns result from overall interval.
+     * Perform Map-Reduce with parameters, cache and output the result. Computed results are saved
+     * in special collection. At next cache invoking with same identifier and date boundaries
+     * (dateFrom(),dateTo()), result is returned from cache. At cache invoking with same identifier
+     * and date boundaries intersected with cache date boundaries, map reduce is performed only at
+     * not computed date intervals. Finally it returns result from overall interval.
      *
      * @param cm cache identifier
      * @param map JS map function
      * @param reduce JS reduce function
      * @param finalize JS finalize function
      * @param scope global variables for mr server-side
-     * @return map reduce result
+     * @return map reduce result from cache
      */
     private DBObject cache(CacheMatcher cm, String map, String reduce, String finalize, Map<String, Object> scope) {
-        if(start == null){
+        if (start == null) {
             Calendar cal = new GregorianCalendar(1970, 0, 0);
             start = cal.getTime();
         }
-        if(end == null){
+        if (end == null) {
             Calendar cal = new GregorianCalendar(2050, 0, 0);
             end = cal.getTime();
         }
@@ -557,12 +690,12 @@ public class Query {
                         && point1.getDate() == start) {
                 } else if (point1.getFlag() == CachePoint.Flag.START) {
                     mapReduce(map, reduce, finalize, CACHE,
-                            MapReduceCommand.OutputType.MERGE, scope, start, point1.getDate());
+                            MapReduceCommand.OutputType.MERGE, scope, start, point1.getDate(), 0);
                 } else if (cursor.hasNext()) {
                     point2 = dbmapper.fromDB(cursor.next());
-                    mapReduce(map, reduce, finalize, CACHE, MapReduceCommand.OutputType.MERGE, scope, point1.getDate(), point2.getDate());
+                    mapReduce(map, reduce, finalize, CACHE, MapReduceCommand.OutputType.MERGE, scope, point1.getDate(), point2.getDate(), 0);
                 } else {
-                    mapReduce(map, reduce, finalize, CACHE, MapReduceCommand.OutputType.MERGE, scope, point1.getDate(), end);
+                    mapReduce(map, reduce, finalize, CACHE, MapReduceCommand.OutputType.MERGE, scope, point1.getDate(), end, 0);
                 }
             }
 
@@ -597,19 +730,19 @@ public class Query {
                 cacheFlags.remove(new BasicDBObject("_id." + CachePoint.ID_TIME, end));
                 cacheFlags.save(dbmapper.toDB(CACHE_POINT_START));
                 //nothing cached, remove end
-                mapReduce(map, reduce, finalize, CACHE, MapReduceCommand.OutputType.MERGE, scope, start, end);
+                mapReduce(map, reduce, finalize, CACHE, MapReduceCommand.OutputType.MERGE, scope, start, end, 0);
             } else {
                 //nothing cached, need to recompute
-                mapReduce(map, reduce, finalize, CACHE, MapReduceCommand.OutputType.MERGE, scope, start, end);
+                mapReduce(map, reduce, finalize, CACHE, MapReduceCommand.OutputType.MERGE, scope, start, end, 0);
                 cacheFlags.save(dbmapper.toDB(CACHE_POINT_START));
                 cacheFlags.save(dbmapper.toDB(CACHE_POINT_END));
             }
         }
-        return wrap("result", cache.find(match).toArray());
+        return wrap("result", cache.find(match).sort(new BasicDBObject("_id",1)));
     }
 
     /**
-     * Cache assistant method. Get CachePoint flag having date before (inclusively) date specified
+     * Cache assistant method. Get CachePoint flag having date before date specified (inclusively)
      */
     private CachePoint.Flag getInclusiveBeforePoint(Date date) {
         DBCollection cache = col.getDB().getCollection(CACHE);
@@ -631,6 +764,9 @@ public class Query {
         return getInclusiveBeforePoint(date) == CachePoint.Flag.START;
     }
 
+    /**
+     * Cache assistant method. Get CachePoint flag having date after date specified (inclusively)
+     */
     private CachePoint.Flag getInclusiveAfterPoint(Date date) {
         DBCollection cache = col.getDB().getCollection(CACHE);
         DBObject afterEndQuery = BasicDBObjectBuilder.start()
@@ -646,10 +782,9 @@ public class Query {
         }
     }
 
-    private boolean isEndInclusiveAfterPoint(Date date) {
-        return getInclusiveAfterPoint(date) == CachePoint.Flag.START;
-    }
-
+    /**
+     * Cache assistant method. Get CachePoint flag saved in cache with date specified
+     */
     private CachePoint.Flag getAtPoint(Date date) {
         DBCollection cache = col.getDB().getCollection(CACHE);
         DBObject atQuery = BasicDBObjectBuilder.start()
@@ -663,19 +798,19 @@ public class Query {
         }
     }
 
-    private Map<String, Object> getScope(int step) {
+    private Map<String, Object> getScope(long step) {
         Map<String, Object> scope = new HashMap<String, Object>();
         scope.put("step", step);
         return scope;
     }
 
-    private Map<String, Object> getScope(String field, int step) {
+    private Map<String, Object> getScope(String field, long step) {
         Map<String, Object> scope = getScope(step);
         scope.put("field", field);
         return scope;
     }
 
-    private Map<String, Object> getScope(String field, int step, String hash) {
+    private Map<String, Object> getScope(String field, long step, String hash) {
         Map<String, Object> scope = getScope(field, step);
         scope.put("hash", hash);
         return scope;
