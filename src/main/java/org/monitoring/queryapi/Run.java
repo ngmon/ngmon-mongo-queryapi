@@ -38,7 +38,7 @@ public class Run {
         System.out.println((end-start)/1e6);
         System.out.println("count " + i);
         
-        q.setMode(Manager.Mode.MapReduce);
+        q.setImplementation(new StatisticsMapReduce(q));
         start = System.nanoTime();
         it = (Iterable<DBObject>) q.setStep(172800000).sum("value").get("result");
         end = System.nanoTime(); 

@@ -13,14 +13,18 @@
 },{
     _id:"map_cached", 
     value : 
-    function(x) { 
+    function(doc) { 
         var id = {
-            date: x.date, 
+            date: doc.date, 
             match: hash,
             step: step
         };
         id.date.setTime(id.date.getTime()-id.date.getTime()%step);
-        emit(id, x[field]);
+        path = field.split(".");
+        for(var i = 0; i<path.length; i++){
+            doc = doc[path[i]];
+        }
+        emit(id, doc);
     }
 },{
     _id:"count_map", 

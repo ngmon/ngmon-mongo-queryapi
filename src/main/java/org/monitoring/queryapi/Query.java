@@ -113,9 +113,6 @@ public class Query {
         return limit;
     }
 
-    public void setMode(Mode mode) {
-        this.mode = mode;
-    }
     
     public void setImplementation(Statistics stat){
         this.stat = stat;

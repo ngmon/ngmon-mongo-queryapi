@@ -32,7 +32,7 @@ public class CaliperPreaggregate extends SimpleBenchmark {
     int from, to;
     Compute computer = new ComputeAvg();
     TimeUnit unit = TimeUnit.MINUTES;
-    int[][] times = {{60, 24}, {1440, 43200, 3, 3},{1440, 30}, {43200, 12} };
+    int[][] times = {{60, 24}, {1440, 30, 3, 3}, {1440, 30}, {43200, 12} };
     Preaggregate preaggregate = new PreaggregateMongo(col);
     Preaggregate preaggregateMR = new PreaggregateMongoMR(col);
     Preaggregate preaggregateMRI = new PreaggregateMongoMRI(col);
@@ -62,7 +62,7 @@ public class CaliperPreaggregate extends SimpleBenchmark {
         //m.getDb().dropDatabase();
     }
 
-    public void timeClassicAggregate(int reps) {
+    public void imeClassicAggregate(int reps) {
         for (int i = 0; i < reps; i++) {
             preaggregate.saveEvent(unit, times, list.get(i));
         }
