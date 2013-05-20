@@ -55,7 +55,7 @@ public class CacheMatcher {
         return groupTime;
     }
 
-    public void setGroupTime(int groupTime) {
+    public void setGroupTime(long groupTime) {
         this.groupTime = groupTime;
     }
 }

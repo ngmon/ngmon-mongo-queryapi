@@ -311,7 +311,7 @@ public class Query {
 
     /**
      * Find most occured documents having time before time of documents searchable by matching with
-     * effect document (designed for finding reasons of effects)
+     * effect document (designed for finding causes of effects)
      *
      * @param effect document identifing many documents in db
      * @param limit restrict returned number of documents
@@ -319,7 +319,7 @@ public class Query {
      * @param groupBy fields for grouping documents
      * @return Query for chaining
      */
-    public DBObject reasonFor(DBObject effect, int limit, int timeBefore, String... groupBy) {
+    public DBObject causeFor(DBObject effect, int limit, int timeBefore, String... groupBy) {
         BasicDBList dates = new BasicDBList();
         BasicDBObjectBuilder builder = new BasicDBObjectBuilder();
         Iterable<DBObject> reasons;

@@ -23,7 +23,7 @@ public class CachePoint extends CacheMatcher {
             return flag;
         }
     }
-    public static final String ID_TIME = "time";
+    public static final String ID_TIME = "t";
     private Flag flag;
     private Date date;
 

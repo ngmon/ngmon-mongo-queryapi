@@ -180,13 +180,13 @@ public class StatisticsMapReduceCached extends StatisticsMapReduce implements St
      * Cache assistant method. Get CachePoint flag having date before date specified (inclusively)
      */
     private CachePoint.Flag getInclusiveBeforePoint(Date date) {
-        DBCollection cache = query.getCollection().getDB().getCollection(CACHE);
+        DBCollection cacheflags = query.getCollection().getDB().getCollection(CACHE_FLAGS);
         DBObject beforeStartQuery = BasicDBObjectBuilder.start()
                 .push("_id." + CachePoint.ID_TIME)
                 .append(Field.LTE, date)
                 .get();
         DBObject order = new BasicDBObject("_id." + CachePoint.ID_TIME, -1);
-        List<DBObject> beforeStartResponseList = cache
+        List<DBObject> beforeStartResponseList = cacheflags
                 .find(beforeStartQuery).sort(order).limit(1).toArray();
         if (beforeStartResponseList.isEmpty()) {
             return CachePoint.Flag.NONE;
@@ -203,12 +203,12 @@ public class StatisticsMapReduceCached extends StatisticsMapReduce implements St
      * Cache assistant method. Get CachePoint flag having date after date specified (inclusively)
      */
     private CachePoint.Flag getInclusiveAfterPoint(Date date) {
-        DBCollection cache = query.getCollection().getDB().getCollection(CACHE);
+        DBCollection cacheflags = query.getCollection().getDB().getCollection(CACHE_FLAGS);
         DBObject afterEndQuery = BasicDBObjectBuilder.start()
                 .push("_id." + CachePoint.ID_TIME)
                 .append(Field.GTE, date).get();
         DBObject order = new BasicDBObject("_id." + CachePoint.ID_TIME, 1);
-        List<DBObject> afterEndResponseList = cache.find(afterEndQuery)
+        List<DBObject> afterEndResponseList = cacheflags.find(afterEndQuery)
                 .sort(order).limit(1).toArray();
         if (afterEndResponseList.isEmpty()) {
             return CachePoint.Flag.NONE;
@@ -221,11 +221,11 @@ public class StatisticsMapReduceCached extends StatisticsMapReduce implements St
      * Cache assistant method. Get CachePoint flag saved in cache with date specified
      */
     private CachePoint.Flag getAtPoint(Date date) {
-        DBCollection cache = query.getCollection().getDB().getCollection(CACHE);
+        DBCollection cacheflags = query.getCollection().getDB().getCollection(CACHE_FLAGS);
         DBObject atQuery = BasicDBObjectBuilder.start()
                 .append("_id." + CachePoint.ID_TIME, date)
                 .get();
-        List<DBObject> atResponseList = cache.find(atQuery).limit(1).toArray();
+        List<DBObject> atResponseList = cacheflags.find(atQuery).limit(1).toArray();
         if (atResponseList.isEmpty()) {
             return CachePoint.Flag.NONE;
         } else {

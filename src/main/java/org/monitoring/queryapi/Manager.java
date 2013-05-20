@@ -244,6 +244,11 @@ public class Manager {
     public void setMode(Mode mode){
         MODE = mode;
     }
+
+    public void setDB(String name) {
+        this.dbName = name;
+        this.db = m.getDB(dbName);
+    }
     
     public enum Mode {
 

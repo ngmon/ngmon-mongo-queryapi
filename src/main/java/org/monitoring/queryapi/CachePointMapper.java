@@ -16,7 +16,7 @@ public class CachePointMapper {
         CachePoint cpoint = new CachePoint();
         cpoint.setDate((Date) ((DBObject) dbobject.get("_id")).get("t"));
         cpoint.setMatch((String) ((DBObject)dbobject.get("_id")).get("m"));
-        cpoint.setGroupTime((Integer) ((DBObject)dbobject.get("_id")).get("s"));
+        cpoint.setGroupTime((Long) ((DBObject)dbobject.get("_id")).get("s"));
         cpoint.setFlag(((Integer) dbobject.get(CACHE_FLAG))==1?CachePoint.Flag.END:CachePoint.Flag.START);
         return cpoint;
     }
@@ -24,7 +24,7 @@ public class CachePointMapper {
     public DBObject toDB(CachePoint cachePoint) {
         return BasicDBObjectBuilder.start()
                 .push("_id")
-                .append("t", cachePoint.getDate())
+                .append(CachePoint.ID_TIME, cachePoint.getDate())
                 .append("m", cachePoint.getMatch())
                 .append("s", cachePoint.getGroupTime())
                 .pop()
