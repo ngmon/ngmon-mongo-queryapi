@@ -1,6 +1,7 @@
 package org.monitoring.queryapi;
 /**
- *
+ * Basic representation of matching condition used for finding cache point in DB
+ * 
  * @author Michal Dubravcik
  */
 public class CacheMatcher {

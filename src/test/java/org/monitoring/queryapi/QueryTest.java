@@ -2,7 +2,6 @@ package org.monitoring.queryapi;
 
 import com.google.code.morphia.Datastore;
 import com.google.code.morphia.Morphia;
-import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -15,7 +14,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- *
+ * If needed change implementation via Manager
  * @author Michal
  */
 public class QueryTest {
@@ -29,7 +28,7 @@ public class QueryTest {
 
     @BeforeClass
     public static void setUp() {
-        m.setMode(Manager.Mode.MapReduceCached);
+        m.setImplementation(Manager.Mode.MapReduceCached);
         System.out.println(m.MODE);
         m.getDb().dropDatabase();
         m.executeJSSaveFromDefaultFile();
@@ -152,69 +151,5 @@ public class QueryTest {
         assertEquals("2. batch", new Double(14.5), ob.get("value"));
     }*/
 
-    /*DEPRECATED
-     * @Test
-    public void avgCached() {
-        Query q = m.createQueryOnCollection("querytest");
-        int i = 0;
-        List res = (List) q.setStep(10000).avgCached("value").get("result");
-        assertNotEquals("Empty result", 0, res.size());
-        Iterator it = ((Iterable<DBObject>) res).iterator();
-        DBObject ob = (DBObject) it.next();
-        assertEquals("1. batch", new Double(4.5), ob.get("value"));
-        ob = (DBObject) it.next();
-        assertEquals("2. batch", new Double(14.5), ob.get("value"));
-    }
-
-    @Test
-    public void countCached() {
-        Query q = m.createQueryOnCollection("querytest");
-        int i = 0;
-        List res = (List) q.setStep(10000).countCached().get("result");
-        assertNotEquals("Empty result", 0, res.size());
-        Iterator it = ((Iterable<DBObject>) res).iterator();
-        DBObject ob = (DBObject) it.next();
-        assertEquals("1. batch", new Double(NUM / 2), ob.get("value"));
-        ob = (DBObject) it.next();
-        assertEquals("2. batch", new Double(NUM / 2), ob.get("value"));
-    }
-
-    @Test
-    public void minCached() {
-        Query q = m.createQueryOnCollection("querytest");
-        int i = 0;
-        List res = (List) q.setStep(10000).minCached("value").get("result");
-        Iterator it = ((Iterable<DBObject>) res).iterator();
-        DBObject ob = (DBObject) it.next();
-        assertEquals("1. batch", new Double(0), ob.get("value"));
-        ob = (DBObject) it.next();
-        assertEquals("2. batch", new Double(10), ob.get("value"));
-    }
-
-    @Test
-    public void maxCached() {
-        Query q = m.createQueryOnCollection("querytest");
-        int i = 0;
-        List res = (List) q.setStep(10000).maxCached("value").get("result");
-        Iterator it = ((Iterable<DBObject>) res).iterator();
-        DBObject ob = (DBObject) it.next();
-        assertEquals("1. batch", new Double(9), ob.get("value"));
-        ob = (DBObject) it.next();
-        assertEquals("2. batch", new Double(19), ob.get("value"));
-    }
-
-    @Test
-    public void medianCached() {
-        Query q = m.createQueryOnCollection("querytest");
-        int i = 0;
-        List res = (List) q.setStep(10000).medianCached("value").get("result");
-        assertNotEquals("Empty result", 0, res.size());
-        Iterator it = ((Iterable<DBObject>) res).iterator();
-        DBObject ob = (DBObject) it.next();
-        assertEquals("1. batch", new Double(4.5), ob.get("value"));
-        ob = (DBObject) it.next();
-        assertEquals("2. batch", new Double(14.5), ob.get("value"));
-    }
-    */
     
 }

@@ -7,10 +7,10 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.Date;
-import org.monitoring.queryapi.Manager.Mode;
 
 /**
- * Class for composing complex queries.
+ * Class for composing complex queries on MongoDB.
+ * Supported are 2 kinds: fetching events or fetching statistics computed on events
  *
  * @author Michal Dubravcik
  */
@@ -32,10 +32,15 @@ public class Query {
     public static final String ID_DATA = "data";
     public static final String ID_DATE = "date";
 
+    
     public Query(DBCollection col) {
         this.col = col;
     }
 
+    /**
+     * Get collection on which will be query executed
+     * @param col 
+     */
     public DBCollection getCollection() {
         return col;
     }
@@ -72,6 +77,10 @@ public class Query {
         return this;
     }
 
+    /**
+     * Sort documents on output by date ascending
+     * @return 
+     */
     public Query orderDateAsc() {
         return orderAsc("_id");
     }
@@ -87,10 +96,18 @@ public class Query {
         return this;
     }
 
+    /**
+     * Sort documents on output by date descending
+     * @return 
+     */
     public Query orderDateDesc() {
         return orderDesc("_id");
     }
 
+    /**
+     * Get ordering document
+     * @return 
+     */
     public DBObject getOrder() {
         return sort.get();
     }
@@ -109,15 +126,26 @@ public class Query {
         return this;
     }
 
+    /**
+     * Get num of limited documents
+     * @return 
+     */
     public int getLimit() {
         return limit;
     }
 
-    
+    /**
+     * Set implementation of Query execution
+     * @param stat 
+     */
     public void setImplementation(Statistics stat){
         this.stat = stat;
     }
     
+    /**
+     * Get chosed implementation of query execution
+     * @return 
+     */
     public Statistics getImplementation(){
         return stat;
     }
@@ -180,6 +208,10 @@ public class Query {
         return this;
     }
 
+    /**
+     * Get matching starting date
+     * @return 
+     */
     public Date getFromDate() {
         return start;
     }
@@ -195,6 +227,10 @@ public class Query {
         return this;
     }
 
+    /**
+     * Get matching ending date
+     * @return 
+     */
     public Date getToDate() {
         return end;
     }
@@ -213,6 +249,10 @@ public class Query {
         return this;
     }
 
+    /**
+     * Get grouping time interval
+     * @return 
+     */
     public long getStep() {
         return step;
     }

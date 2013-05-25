@@ -47,8 +47,9 @@ public class StatisticsAggregationFramework implements Statistics {
     }
     
     /**
-     * Aggregation function
-     * @param appliedAggregationFunction
+     * Aggregation function. Universal computing via Aggregation Framework.     * 
+     * @param appliedAggregationFunction contains DBObject with applied aggregation function on field.
+     *  eg. {"$max: "field"} counting maximal value in interval. Can contains multiple functions and fields.
      * @return 
      */
     public DBObject aggregate(DBObject appliedAggregationFunction) {
@@ -68,6 +69,11 @@ public class StatisticsAggregationFramework implements Statistics {
     }
 
 
+    /**
+     * Construct DBObject for group operator for Aggregation Framework
+     * @param appliedAggregationFunction
+     * @return 
+     */
     public DBObject groupingObjectForAF(DBObject appliedAggregationFunction) {
         BasicDBList add = new BasicDBList();
         BasicDBList multiply = new BasicDBList();

@@ -5,13 +5,18 @@ import com.mongodb.DBObject;
 import java.util.Date;
 
 /**
- *
+ * Mapping of Cache point entity into MongoDB Document DBObject and vice versa 
  * @author Michal Dubravcik
  */
 public class CachePointMapper {
     
     public static final String CACHE_FLAG = "f";
 
+    /**
+     * Resolve document in CachePoint entity
+     * @param dbobject
+     * @return 
+     */
     public CachePoint fromDB(DBObject dbobject) {
         CachePoint cpoint = new CachePoint();
         cpoint.setDate((Date) ((DBObject) dbobject.get("_id")).get("t"));
@@ -21,6 +26,11 @@ public class CachePointMapper {
         return cpoint;
     }
 
+    /**
+     * Map CachePoint into DBObject
+     * @param cachePoint
+     * @return 
+     */
     public DBObject toDB(CachePoint cachePoint) {
         return BasicDBObjectBuilder.start()
                 .push("_id")

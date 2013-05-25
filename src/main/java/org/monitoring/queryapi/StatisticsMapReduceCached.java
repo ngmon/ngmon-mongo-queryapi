@@ -14,7 +14,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
+ * Implementation of statistical functions via Map Reduce of MongoDB with caching into seperate 
+ * collection
+ * Use only if Aggregation Framework is not usable or you want to reuse already computed results
+ * Map Reduce with caching is slower then Agg.Framew. and Map Reduce
+ * 
  * @author Michal Dubravcik
  */
 public class StatisticsMapReduceCached extends StatisticsMapReduce implements Statistics {

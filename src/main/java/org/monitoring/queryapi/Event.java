@@ -6,7 +6,9 @@ import java.util.Date;
 import org.bson.types.ObjectId;
 
 /**
- *
+ * Basic Event to be stored into DB. 
+ * Values are subjects of statistical functions of Query or Preaggregation
+ * 
  * @author Michal Dubravcik
  */
 @Entity(value = "aggregate", noClassnameStored=true)

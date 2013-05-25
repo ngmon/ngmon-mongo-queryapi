@@ -15,7 +15,7 @@ import org.monitoring.queryapi.Event;
 import org.monitoring.queryapi.Manager;
 
 /**
- *
+ * Precounting of statistics via upsert in Mongo
  * @author Michal Dubravcik
  */
 public class PreaggregateMongo implements Preaggregate {
@@ -41,23 +41,19 @@ public class PreaggregateMongo implements Preaggregate {
      * suffixed with each element of times array.
      *
      * * * * *
-     * Example: int[] times = {1,60,1440}; saveEvent(TimeUnit.MINUTES, times, 1, --, --);
+     * Example: int[][] times = {{1,60},{24,30}}; saveEvent(TimeUnit.MINUTES, times, 1);
      *
-     * Creates collection db.aggregate1, db.aggregate60, db.aggregate1440. db.aggregate60 contains
-     * 60 fields that holds aggregations for each minute (first elem of array = 1 minute).
-     * db.aggregate24 contains 24 (1440/60) fields that holds aggregations for each hour (second
-     * elem of array = 60 minutes = 1 hour). db.aggregate1 contains only 1 (as it is last) field
-     * that holds aggregations for each day (third elem of array = 1440 minutes = 24 hours = 1 day).
+     * Creates collection db.aggregate1 containing 60 fields that holds aggregations for each minute
+     * in one day
+     * db.aggregate24 fields that contains aggregations for daily aggregations stored in month document
      *
-     * Third parameter specifies that only 1 minute (hour,day) is updated with new event. Use number
-     * 7 if you want that 1 minute (hour/day) holds 7 minute (hour/day) aggregations [-3,+3 units].
+     * Use 3. and 4. element for sliding aggregation where 3. is left range and 4. right range
+     * {{1,30,3,3}} with unit day, creates sliding week (3 left days, 1 day, 3 right days)
+     * aggregation stored in month document
      * * * * *
      *
      * @param unit base time unit
      * @param times array of ints that create hierarchial structure of aggregations
-     * @param range range specifing length (odd number) of interval around base date = (date -
-     * range/2 ; date + range/2) in base units in which are aggregation updated
-     * @param comp implementation specifing what and how to update with Event values
      * @param event event from which values are taken
      */
     @Override

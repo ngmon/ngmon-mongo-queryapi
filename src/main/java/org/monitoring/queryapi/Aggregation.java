@@ -1,7 +1,8 @@
 package org.monitoring.queryapi;
 
 /**
- * Project constants
+ * Project constants for Aggregation framework in MongoDB
+ * 
  * @author Michal
  */
 public class Aggregation {    

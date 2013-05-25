@@ -2,7 +2,6 @@ package org.monitoring.queryapi;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
-import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MapReduceCommand;
 import com.mongodb.MapReduceOutput;
@@ -11,7 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- *
+ * Implementation of statistical functions via Map Reduce of MongoDB
+ * Use only if Aggregation Framework is not usable. Map Reduce is slower then Agg.Framew.
+ * 
  * @author Michal Dubravcik
  */
 public class StatisticsMapReduce implements Statistics {
@@ -67,8 +68,9 @@ public class StatisticsMapReduce implements Statistics {
      * @see MapReduceCommand.OutputType
      * @param type type of job on output
      * @param scope global JS variables
-     * @param qStart
-     * @param qEnd
+     * @param qStart starting date
+     * @param qEnd ending date
+     * @param limit maximal number of documents
      */
     protected Iterable<DBObject> mapReduce(String map, String reduce, String finalize, String output,
             MapReduceCommand.OutputType type, Map<String, Object> scope, Date qStart, Date qEnd, int limit) {

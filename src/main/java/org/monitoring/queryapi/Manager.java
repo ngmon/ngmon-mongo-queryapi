@@ -24,7 +24,8 @@ import org.monitoring.queryapi.preaggregation.Preaggregate;
 import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
 
 /**
- *
+ * Manager responsible for establishing connection to MongoDB and creating
+ * instances of queries sended onto it
  * @author Michal Dubravcik
  */
 public class Manager {
@@ -81,12 +82,7 @@ public class Manager {
             db.collectionExists("test");
         } catch (UnknownHostException ex) {
             System.err.println("Connection failed: " + ex);
-            throw new RuntimeException("Can not connect Mongo server");
-        } catch (NullPointerException ex) {
-
-            throw new RuntimeException("Can not connect Mongo server");
         } catch (Exception ex) {
-
             throw new RuntimeException("Can not connect Mongo server");
         }
     }
@@ -182,11 +178,21 @@ public class Manager {
         return col;
     }
 
+    /**
+     * Set default collection which is later used in queries
+     * @param collectionName
+     * @return 
+     */
     public Manager setCollection(String collectionName) {
         col = db.getCollection(collectionName);
         return this;
     }
 
+    /**
+     * Drop default collection in DB. It removes all the data stored in it !
+     * @param collectionName
+     * @return 
+     */
     public Manager dropCollection(String collectionName) {
         col = db.getCollection(collectionName);
         col.drop();
@@ -201,11 +207,20 @@ public class Manager {
         executeJS(cmd);
     }
 
+    /**
+     * Read default file "js_command.js" storing JS functions 
+     * and store them in "system.js" collection in MongoDB
+     */
     public void executeJSSaveFromDefaultFile() {
         String cmd = readFile("src/main/resources/js_command.js");
         executeJS("db.system.js.save(" + cmd + ");");
     }
 
+    /**
+     * Read file on path
+     * @param path
+     * @return String content of file
+     */
     public static String readFile(String path) {
         StringBuilder sb = new StringBuilder();
         InputStream is = null;
@@ -241,15 +256,26 @@ public class Manager {
         CommandResult r = db.doEval(cmd);
     }
 
-    public void setMode(Mode mode){
+    /**
+     * Set implementation of Query execution
+     * @param mode 
+     */
+    public void setImplementation(Mode mode){
         MODE = mode;
     }
 
+    /**
+     * Set DB on which is connected Manager
+     * @param name 
+     */
     public void setDB(String name) {
         this.dbName = name;
         this.db = m.getDB(dbName);
     }
     
+    /**
+     * Implementation of Query execution
+     */
     public enum Mode {
 
         AggregationFramework(1),

@@ -3,11 +3,18 @@ package org.monitoring.queryapi;
 import java.util.Date;
 
 /**
- *
+ * Cache point is representation of boundary point (start or end) of time interval in which is 
+ * something already stored in cache
+ * 
  * @author Michal Dubravcik
  */
 public class CachePoint extends CacheMatcher {
 
+    /**
+     * Flag is cache point option representing start or end of time interval.
+     * None flag is used only in situation when nothing is saved in cache, for representing state
+     * nothing was found
+     */
     public enum Flag {
 
         START(0),

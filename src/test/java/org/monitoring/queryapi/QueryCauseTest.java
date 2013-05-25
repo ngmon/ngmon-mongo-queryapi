@@ -12,12 +12,13 @@ import java.util.List;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import static org.junit.Assert.*;
 
 /**
  *
  * @author Michal Dubravcik
  */
-public class ReasonTest {
+public class QueryCauseTest {
     
     static Manager m = new Manager();
     static List<Document> list = new ArrayList<Document>();
@@ -54,15 +55,11 @@ public class ReasonTest {
     }
     
     @Test
-    public void testReason(){
-//        Document doc = new Document();
-//        DocumentData docData = new DocumentData();
-//        docData.setSource(19);
-//        doc.setData(docData);
-//        DBObject effect = morphia.toDBObject(doc); // value, part fields NOT MAPPED AS EMPTY
+    public void testCause(){
         DBObject effect = BasicDBObjectBuilder.start().append("data.source", 19).get();
-        DBObject res = m.createQueryOnCollection("querytest").reasonFor(effect, 5, 10000, "data.source");
+        DBObject res = m.createQueryOnCollection("querytest").causeFor(effect, 5, 10000, "data.source");
         Iterable<DBObject> it = (Iterable<DBObject>) res.get("result");
+        assertNotNull("null response", it);
     }
 
 }

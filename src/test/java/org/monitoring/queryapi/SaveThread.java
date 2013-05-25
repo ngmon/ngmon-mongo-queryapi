@@ -9,7 +9,7 @@ import org.monitoring.queryapi.preaggregation.Preaggregate;
 import org.monitoring.queryapi.preaggregation.PreaggregateMongoMRI;
 
 /**
- *
+ * Preaggregation in threads
  * @author Michal Dubravcik
  */
 public class SaveThread extends Thread {

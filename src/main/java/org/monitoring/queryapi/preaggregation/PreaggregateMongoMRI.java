@@ -16,7 +16,7 @@ import org.monitoring.queryapi.Field;
 import org.monitoring.queryapi.Manager;
 
 /**
- *
+ * Precounting of statistics via Incremental Map Reduce in Mongo
  * @author Michal Dubravcik
  */
 public class PreaggregateMongoMRI implements Preaggregate {
@@ -43,11 +43,27 @@ public class PreaggregateMongoMRI implements Preaggregate {
     }
 
     /**
-     * Save event into DB and perform actualization of aggregations via incremental map-reduce
+     * Update aggregations with Event value(s). Method creates initial documents in DB if no are
+     * found. Otherwise documents are updated base on PreaggregateCompute implementation.
      *
-     * @param unit
-     * @param times
-     * @param event
+     * New collections are created with name of Preaggregate collection name from constructor and
+     * suffixed with each element of times array.
+     *
+     * * * * *
+     * Example: int[][] times = {{1,60},{24,30}}; saveEvent(TimeUnit.MINUTES, times, 1);
+     *
+     * Creates collection db.aggregate1 containing 60 fields that holds aggregations for each minute
+     * in one day
+     * db.aggregate24 fields that contains aggregations for daily aggregations stored in month document
+     *
+     * Use 3. and 4. element for sliding aggregation where 3. is left range and 4. right range
+     * {{1,30,3,3}} with unit day, creates sliding week (3 left days, 1 day, 3 right days)
+     * aggregation stored in month document
+     * * * * *
+     * Computing is based on Stored JS functions in Mongo
+     * @param unit base time unit
+     * @param times array of ints that create hierarchial structure of aggregations
+     * @param event event from which values are taken
      */
     @Override
     public void saveEvent(TimeUnit unit, int[][] times, Event event) {
